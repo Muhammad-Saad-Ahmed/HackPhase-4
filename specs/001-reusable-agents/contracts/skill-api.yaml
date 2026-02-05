@@ -1,0 +1,413 @@
+openapi: 3.1.0
+info:
+  title: Skills API
+  description: Reusable skill function interfaces for AI agents (intent classification, entity extraction, tool selection, etc.)
+  version: 1.0.0
+
+components:
+  schemas:
+    # Input/Output schemas for skill functions
+
+    IntentClassificationInput:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Natural language text to classify
+        conversation_context:
+          type: array
+          items:
+            type: string
+          description: Optional previous messages for context
+      required:
+        - text
+
+    IntentClassificationOutput:
+      type: object
+      properties:
+        intent_type:
+          type: string
+          enum: [create, read, update, delete, list, search, analyze]
+          description: Classified intent category
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Classification confidence score
+        reasoning:
+          type: string
+          description: Explanation of classification decision
+      required:
+        - intent_type
+        - confidence
+
+    EntityExtractionInput:
+      type: object
+      properties:
+        text:
+          type: string
+          description: Natural language text to extract entities from
+        entity_types:
+          type: array
+          items:
+            type: string
+          description: Optional filter for specific entity types
+        conversation_context:
+          type: array
+          items:
+            type: string
+          description: Optional conversation history for coreference resolution
+      required:
+        - text
+
+    EntityExtractionOutput:
+      type: object
+      properties:
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                description: Entity type (task, customer, note, etc.)
+              value:
+                type: string
+                description: Extracted entity value
+              attributes:
+                type: object
+                description: Additional entity attributes (status, date, etc.)
+              start_position:
+                type: integer
+                description: Character position where entity appears in text
+              end_position:
+                type: integer
+                description: Character position where entity ends in text
+              confidence:
+                type: number
+                format: float
+                minimum: 0
+                maximum: 1
+            required:
+              - type
+              - value
+              - confidence
+        confidence:
+          type: number
+          format: float
+          minimum: 0
+          maximum: 1
+          description: Overall extraction confidence
+      required:
+        - entities
+        - confidence
+
+    ToolSelectionInput:
+      type: object
+      properties:
+        intent:
+          type: string
+          enum: [create, read, update, delete, list, search, analyze]
+          description: Classified intent from intent classifier
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+              value:
+                type: string
+              attributes:
+                type: object
+          description: Extracted entities from entity extractor
+        application_domain:
+          type: string
+          description: Application context for tool filtering
+        available_tools:
+          type: array
+          items:
+            type: object
+            properties:
+              tool_name:
+                type: string
+              description:
+                type: string
+              parameter_schema:
+                type: object
+          description: Optional explicit tool list (if not provided, queries tool registry)
+      required:
+        - intent
+        - entities
+        - application_domain
+
+    ToolSelectionOutput:
+      type: object
+      properties:
+        selected_tool:
+          type: object
+          properties:
+            tool_name:
+              type: string
+            confidence:
+              type: number
+              format: float
+              minimum: 0
+              maximum: 1
+            similarity_score:
+              type: number
+              format: float
+              description: Semantic similarity score (if using embeddings)
+            parameters:
+              type: object
+              description: Prepared parameters mapped from entities
+            parameter_mapping:
+              type: array
+              items:
+                type: object
+                properties:
+                  parameter_name:
+                    type: string
+                  entity_source:
+                    type: string
+                  transformation:
+                    type: string
+              description: Explains how entities were mapped to tool parameters
+          required:
+            - tool_name
+            - confidence
+            - parameters
+        alternative_tools:
+          type: array
+          items:
+            type: object
+            properties:
+              tool_name:
+                type: string
+              confidence:
+                type: number
+                format: float
+          description: Other candidate tools with lower confidence
+        reasoning:
+          type: string
+          description: Explanation of tool selection decision
+      required:
+        - selected_tool
+
+    ConfirmationGenerationInput:
+      type: object
+      properties:
+        action_taken:
+          type: string
+          description: Human-readable description of action
+        tool_name:
+          type: string
+          description: Tool that was invoked
+        parameters_used:
+          type: object
+          description: Parameters passed to tool
+        result:
+          type: object
+          description: Result returned from tool
+        entities_affected:
+          type: array
+          items:
+            type: object
+            properties:
+              entity_type:
+                type: string
+              entity_id:
+                type: string
+              entity_name:
+                type: string
+          description: Entities created/modified/deleted
+      required:
+        - action_taken
+        - tool_name
+        - result
+
+    ConfirmationGenerationOutput:
+      type: object
+      properties:
+        confirmation_message:
+          type: string
+          description: User-friendly confirmation of action taken
+          example: "✓ Marked task #42 'Buy groceries' as done"
+        summary:
+          type: object
+          properties:
+            entities_affected:
+              type: integer
+            operation_type:
+              type: string
+              enum: [create, read, update, delete]
+        details:
+          type: array
+          items:
+            type: string
+          description: Detailed changes made (optional, for complex operations)
+      required:
+        - confirmation_message
+
+    ErrorHumanizationInput:
+      type: object
+      properties:
+        error_type:
+          type: string
+          description: Technical error type
+        error_message:
+          type: string
+          description: Raw error message from tool/system
+        error_code:
+          type: string
+          description: Error code (if available)
+        context:
+          type: object
+          properties:
+            user_request:
+              type: string
+            tool_name:
+              type: string
+            operation:
+              type: string
+            parameters:
+              type: object
+          description: Context about what user was trying to do
+      required:
+        - error_type
+        - error_message
+        - context
+
+    ErrorHumanizationOutput:
+      type: object
+      properties:
+        user_friendly_message:
+          type: string
+          description: Plain language explanation of error
+          example: "We couldn't find a task with ID #999. Use 'show tasks' to see available tasks."
+        error_category:
+          type: string
+          enum: [user_fixable, retryable, system_level]
+          description: Categorization for recovery strategy
+        recovery_actions:
+          type: array
+          items:
+            type: string
+          description: Specific steps user can take to resolve
+        technical_explanation:
+          type: string
+          description: Technical details for debugging (not shown to user)
+      required:
+        - user_friendly_message
+        - error_category
+        - recovery_actions
+
+# Skill Function Signatures (for implementation reference)
+# These are not REST endpoints, but function signatures for skills used by agents
+
+paths: {}  # Skills are invoked as Python functions, not HTTP endpoints
+
+# Function Signature Documentation
+x-skill-functions:
+  classify_intent:
+    description: Classifies user input into intent categories (create, read, update, delete, list, search, analyze)
+    signature: |
+      async def classify_intent(input: IntentClassificationInput) -> IntentClassificationOutput
+    requirements:
+      - MUST use temperature=0 for deterministic outputs (FR-026)
+      - MUST return confidence score >= 0.8 for high-certainty decisions
+      - MUST work across all application domains without domain-specific training (FR-020)
+    implementation_notes:
+      - Use OpenAI function calling with structured output
+      - Provide examples in system prompt for few-shot learning
+      - Cache common intent patterns to reduce API calls
+
+  extract_entities:
+    description: Extracts entities and their attributes from natural language text
+    signature: |
+      async def extract_entities(input: EntityExtractionInput) -> EntityExtractionOutput
+    requirements:
+      - MUST identify entity types dynamically from tool schemas, not hardcoded lists (FR-021)
+      - MUST resolve coreferences using conversation context when provided
+      - MUST return entity positions in text for debugging
+    implementation_notes:
+      - Use OpenAI function calling with flexible entity schema
+      - Support multi-entity extraction in single request
+      - Handle ambiguous entities by returning multiple candidates
+
+  select_tool:
+    description: Matches intent and entities to best available tool using semantic similarity
+    signature: |
+      async def select_tool(input: ToolSelectionInput) -> ToolSelectionOutput
+    requirements:
+      - MUST use tool descriptions and schemas, not hardcoded mappings (FR-003, FR-022)
+      - MUST work with 50+ tools per domain (scale requirement)
+      - MUST return parameter mapping showing entity → parameter transformation
+    implementation_notes:
+      - Generate embedding for (intent + entities)
+      - Query tool_definition table with pgvector similarity search
+      - Filter by parameter schema compatibility
+      - Return confidence threshold check (<0.75 triggers clarification)
+
+  generate_confirmation:
+    description: Creates user-friendly confirmation messages for completed actions
+    signature: |
+      async def generate_confirmation(input: ConfirmationGenerationInput) -> ConfirmationGenerationOutput
+    requirements:
+      - MUST be concise (1-2 sentences for simple operations) (FR-023)
+      - MUST include entity names/IDs for traceability
+      - MUST use checkmark (✓) or similar indicators for success
+    implementation_notes:
+      - Template-based generation for common operations
+      - LLM-based generation for complex multi-step operations
+      - Support markdown formatting for rich client display
+
+  humanize_error:
+    description: Translates technical error messages into plain language with recovery suggestions
+    signature: |
+      async def humanize_error(input: ErrorHumanizationInput) -> ErrorHumanizationOutput
+    requirements:
+      - MUST categorize errors for recovery strategy (FR-018, FR-024)
+      - MUST never expose raw technical errors to users (FR-016)
+      - MUST provide actionable recovery steps (FR-017)
+    implementation_notes:
+      - Use error taxonomy mapping (user_fixable/retryable/system_level)
+      - Pattern match common error types (not_found, timeout, validation_failed, etc.)
+      - LLM fallback for unknown error types
+      - Include trace_id for support escalation
+
+# Testing Requirements
+x-skill-testing:
+  determinism:
+    requirement: Same input must produce identical output across multiple invocations
+    test_approach: Run each skill 5 times with identical input, assert outputs match
+
+  performance:
+    requirement: Intent classification and entity extraction <200ms p95 (from Technical Context)
+    test_approach: Load test with 100 concurrent requests, measure latency percentiles
+
+  accuracy:
+    requirement: |
+      - Intent classification: >90% accuracy across domains (SC-001)
+      - Entity extraction: >85% accuracy with implicit references (SC-004)
+      - Tool selection: >90% correct tool selection (SC-001)
+    test_approach: Curated test dataset with ground truth labels
+
+  domain_agnostic:
+    requirement: Skills must work identically across todo/crm/notes domains without retraining
+    test_approach: Run identical test suite against each domain, assert equal accuracy
+
+# Error Handling
+x-skill-error-handling:
+  low_confidence:
+    condition: Confidence score < 0.8 (threshold from research.md assumptions)
+    action: Return special "clarification_needed" status with options
+
+  api_failure:
+    condition: OpenAI API call fails (timeout, rate limit, service error)
+    action: Retry with exponential backoff (3 attempts), then escalate to Error Agent
+
+  invalid_input:
+    condition: Input validation fails (empty text, malformed parameters)
+    action: Return structured error with specific validation failure details

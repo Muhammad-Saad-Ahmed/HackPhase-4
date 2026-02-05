@@ -1,0 +1,122 @@
+# OpenAPI Contract: Chat Endpoint
+
+## Overview
+The chat endpoint accepts user messages and returns responses from the LLM, potentially including tool calls to MCP tools. The endpoint follows the conversation flow: load conversation, store user message, run agent, execute MCP tools, store assistant response, and return result.
+
+## Endpoint
+```
+POST /api/{user_id}/chat
+```
+
+## Request Parameters
+```json
+{
+  "user_id": {
+    "type": "string",
+    "maxLength": 100,
+    "description": "The ID of the user (path parameter)"
+  }
+}
+```
+
+## Request Body
+```json
+{
+  "conversation_id": {
+    "type": "string",
+    "maxLength": 100,
+    "description": "Optional conversation ID to continue an existing conversation",
+    "nullable": true
+  },
+  "message": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 10000,
+    "description": "The message content from the user"
+  }
+}
+```
+
+## Successful Response
+```json
+{
+  "conversation_id": "abc123xyz",
+  "response": "Sure, I've created a task called 'buy groceries' for you.",
+  "tool_calls": [
+    {
+      "tool_name": "add_task",
+      "arguments": {
+        "title": "buy groceries",
+        "description": "Get milk, eggs, and bread"
+      },
+      "result": {
+        "success": true,
+        "data": {
+          "id": 123,
+          "title": "buy groceries",
+          "description": "Get milk, eggs, and bread",
+          "status": "pending",
+          "created_at": "2023-10-05T14:48:00.000Z"
+        },
+        "message": "Task created successfully"
+      }
+    }
+  ]
+}
+```
+
+## Error Responses
+
+### Validation Error (400)
+```json
+{
+  "error": "Validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "field": "message",
+    "message": "Message is required and must be between 1 and 10000 characters"
+  }
+}
+```
+
+### LLM Provider Error (500)
+```json
+{
+  "error": "LLM provider error",
+  "code": "LLM_PROVIDER_ERROR",
+  "details": {
+    "message": "Failed to get response from LLM provider"
+  }
+}
+```
+
+### MCP Tool Execution Error (500)
+```json
+{
+  "error": "MCP tool execution failed",
+  "code": "MCP_TOOL_ERROR",
+  "details": {
+    "message": "Failed to execute MCP tool",
+    "tool_name": "add_task"
+  }
+}
+```
+
+## Example Usage
+```json
+{
+  "conversation_id": "abc123xyz",
+  "message": "Create a new task called 'buy groceries'"
+}
+```
+
+## Implementation Notes
+- Validates user_id format before processing requests
+- Validates message content (1-10000 characters)
+- Optionally validates conversation_id format if provided
+- Connects to external LLM provider using configuration from environment
+- Processes LLM responses to identify any tool calls to MCP tools
+- Executes identified MCP tool calls and incorporates results back into conversation
+- Returns responses in JSON format with conversation_id, response text, and tool_calls array
+- Maintains conversation context using conversation_id
+- Logs all chat interactions for debugging and analytics

@@ -1,0 +1,177 @@
+$schema: http://json-schema.org/draft-07/schema#
+$id: https://example.com/schemas/task.json
+title: Task
+description: Todo task entity schema for validation and documentation
+type: object
+
+required:
+  - id
+  - title
+  - description
+  - status
+  - created_at
+  - user_id
+
+properties:
+  id:
+    type: integer
+    description: Unique task identifier (auto-generated)
+    minimum: 1
+    examples:
+      - 123
+      - 456
+
+  title:
+    type: string
+    description: Task title or name
+    minLength: 1
+    maxLength: 500
+    examples:
+      - "Buy groceries"
+      - "Call dentist"
+      - "Finish project report"
+
+  description:
+    type: string
+    description: Optional task description or details
+    maxLength: 5000
+    default: ""
+    examples:
+      - ""
+      - "Milk, eggs, bread, avocados"
+      - "Schedule appointment for next week"
+
+  status:
+    type: string
+    description: Task status (lifecycle state)
+    enum:
+      - pending
+      - completed
+    default: pending
+    examples:
+      - "pending"
+      - "completed"
+
+  created_at:
+    type: string
+    format: date-time
+    description: Task creation timestamp in ISO 8601 format
+    examples:
+      - "2026-01-16T10:30:00Z"
+      - "2026-01-16T15:45:30.123Z"
+
+  completed_at:
+    type: ["string", "null"]
+    format: date-time
+    description: Task completion timestamp (null if status is pending)
+    examples:
+      - null
+      - "2026-01-16T15:45:00Z"
+
+  user_id:
+    type: string
+    description: User who owns this task (for multi-tenancy)
+    maxLength: 255
+    examples:
+      - "user-123"
+      - "auth0|507f1f77bcf86cd799439011"
+
+additionalProperties: false
+
+examples:
+  - id: 123
+    title: "Buy groceries"
+    description: "Milk, eggs, bread"
+    status: "pending"
+    created_at: "2026-01-16T10:30:00Z"
+    completed_at: null
+    user_id: "user-123"
+
+  - id: 456
+    title: "Call dentist"
+    description: ""
+    status: "completed"
+    created_at: "2026-01-15T09:00:00Z"
+    completed_at: "2026-01-16T11:30:00Z"
+    user_id: "user-123"
+
+# Validation patterns for common use cases
+definitions:
+  # Input schema for add_task tool
+  TaskInput:
+    type: object
+    required:
+      - title
+    properties:
+      title:
+        type: string
+        minLength: 1
+        maxLength: 500
+      description:
+        type: string
+        maxLength: 5000
+        default: ""
+    additionalProperties: false
+
+  # Input schema for update_task tool
+  TaskUpdate:
+    type: object
+    required:
+      - task_id
+    properties:
+      task_id:
+        type: integer
+        minimum: 1
+      title:
+        type: string
+        minLength: 1
+        maxLength: 500
+      description:
+        type: string
+        maxLength: 5000
+    additionalProperties: false
+    minProperties: 2  # At least task_id + one field to update
+
+  # Filter parameters for list_tasks tool
+  TaskListFilter:
+    type: object
+    properties:
+      status:
+        type: string
+        enum: [all, pending, completed]
+        default: "all"
+      limit:
+        type: integer
+        minimum: 1
+        maximum: 1000
+        default: 100
+      offset:
+        type: integer
+        minimum: 0
+        default: 0
+    additionalProperties: false
+
+  # Response wrapper for list_tasks tool
+  TaskListResponse:
+    type: object
+    required:
+      - tasks
+      - total
+      - limit
+      - offset
+    properties:
+      tasks:
+        type: array
+        items:
+          $ref: "#"  # Reference to root Task schema
+      total:
+        type: integer
+        minimum: 0
+        description: Total number of tasks matching filter
+      limit:
+        type: integer
+        minimum: 1
+      offset:
+        type: integer
+        minimum: 0
+    additionalProperties: false

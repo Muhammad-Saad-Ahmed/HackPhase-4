@@ -1,0 +1,85 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "delete_task",
+  "description": "Permanently delete a task by ID. The task is removed from the database and cannot be recovered. Returns confirmation of deletion.",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "integer",
+          "description": "ID of the task to delete (required)",
+          "minimum": 1,
+          "examples": [42, 123]
+        }
+      },
+      "required": ["task_id"],
+      "additionalProperties": false
+    },
+    "output": {
+      "oneOf": [
+        {
+          "type": "object",
+          "title": "Success Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": true
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "task_id": {
+                  "type": "integer",
+                  "description": "ID of the deleted task"
+                },
+                "deleted": {
+                  "type": "boolean",
+                  "const": true,
+                  "description": "Confirmation that task was deleted"
+                }
+              },
+              "required": ["task_id", "deleted"]
+            },
+            "message": {
+              "type": "string",
+              "examples": ["Task deleted successfully"]
+            }
+          },
+          "required": ["success", "data", "message"]
+        },
+        {
+          "type": "object",
+          "title": "Error Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": false
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message"
+            },
+            "code": {
+              "type": "string",
+              "enum": ["NOT_FOUND", "DATABASE_ERROR", "INTERNAL_ERROR"],
+              "description": "Machine-readable error code"
+            },
+            "details": {
+              "type": "object",
+              "description": "Additional context about the error",
+              "properties": {
+                "task_id": {
+                  "type": "integer",
+                  "description": "The task ID that was not found or could not be deleted"
+                }
+              }
+            }
+          },
+          "required": ["success", "error", "code"]
+        }
+      ]
+    }
+  }
+}

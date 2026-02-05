@@ -1,0 +1,54 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    ports:
+      - "8000:8000"
+    environment:
+      - database_url=${DATABASE_URL:-postgresql+asyncpg://user:password@db:5432/chatdb}
+      - llm_provider=${LLM_PROVIDER:-openai}
+      - llm_model=${LLM_MODEL:-gpt-4o}
+      - llm_api_key=${LLM_API_KEY:-your-openai-api-key}
+      - llm_base_url=${LLM_BASE_URL}
+      - server_host=0.0.0.0
+      - server_port=8000
+      - log_level=${LOG_LEVEL:-INFO}
+    env_file:
+      - ./backend/.env
+    volumes:
+      - ./backend:/app  # For development; remove in production
+    networks:
+      - app-network
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://backend:8000/api}
+    ports:
+      - "3000:3000"
+    environment:
+      - NEXT_PUBLIC_API_URL=${NEXT_PUBLIC_API_URL:-http://localhost:8000/api}
+      - BETTER_AUTH_SECRET=${BETTER_AUTH_SECRET:-dev-secret-key-minimum-32-characters-long-for-development}
+      - BETTER_AUTH_URL=${BETTER_AUTH_URL:-http://localhost:3000}
+    depends_on:
+      backend:
+        condition: service_healthy
+    networks:
+      - app-network
+    restart: unless-stopped
+
+networks:
+  app-network:
+    driver: bridge

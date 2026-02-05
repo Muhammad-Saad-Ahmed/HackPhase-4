@@ -1,0 +1,125 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "add_task",
+  "description": "Create a new task with a title and optional description. Returns the created task with its assigned ID and timestamps.",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "title": {
+          "type": "string",
+          "description": "Short description of the task (required)",
+          "minLength": 1,
+          "maxLength": 255,
+          "examples": [
+            "Review documentation",
+            "Schedule team meeting",
+            "Fix bug in authentication"
+          ]
+        },
+        "description": {
+          "type": "string",
+          "description": "Detailed context or notes for the task (optional)",
+          "maxLength": 1000,
+          "examples": [
+            "Check API docs for completeness and accuracy",
+            "Coordinate with team for Q1 planning session",
+            null
+          ]
+        }
+      },
+      "required": ["title"],
+      "additionalProperties": false
+    },
+    "output": {
+      "oneOf": [
+        {
+          "type": "object",
+          "title": "Success Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": true
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "description": "Unique identifier assigned to the task"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Task title as stored"
+                },
+                "description": {
+                  "type": ["string", "null"],
+                  "description": "Task description or null if not provided"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["pending"],
+                  "description": "Always 'pending' for newly created tasks"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "UTC timestamp when task was created (ISO 8601)"
+                },
+                "completed_at": {
+                  "type": "null",
+                  "description": "Always null for newly created tasks"
+                }
+              },
+              "required": ["id", "title", "description", "status", "created_at", "completed_at"]
+            },
+            "message": {
+              "type": "string",
+              "examples": ["Task created successfully"]
+            }
+          },
+          "required": ["success", "data", "message"]
+        },
+        {
+          "type": "object",
+          "title": "Error Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": false
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message"
+            },
+            "code": {
+              "type": "string",
+              "enum": ["VALIDATION_ERROR", "DATABASE_ERROR", "INTERNAL_ERROR"],
+              "description": "Machine-readable error code"
+            },
+            "details": {
+              "type": "object",
+              "description": "Additional context about the error",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": "Field that failed validation"
+                },
+                "constraint": {
+                  "type": "string",
+                  "description": "Constraint that was violated"
+                },
+                "limit": {
+                  "type": "integer",
+                  "description": "Limit value for constraint"
+                }
+              }
+            }
+          },
+          "required": ["success", "error", "code"]
+        }
+      ]
+    }
+  }
+}

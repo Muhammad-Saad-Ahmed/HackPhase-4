@@ -1,0 +1,88 @@
+# OpenAPI Contract: complete_task Tool
+
+## Overview
+The `complete_task` tool updates a task's status to "completed" and sets the completed_at timestamp. This operation is idempotent - calling it multiple times on the same task will return success.
+
+## Endpoint
+```
+POST /mcp/tools/complete_task
+```
+
+## Request Body
+```json
+{
+  "task_id": {
+    "type": "integer",
+    "minimum": 1,
+    "description": "The ID of the task to complete (required)"
+  }
+}
+```
+
+## Successful Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": 123,
+    "title": "Buy groceries",
+    "description": "Milk, eggs, bread",
+    "status": "completed",
+    "created_at": "2023-10-05T14:48:00.000Z",
+    "completed_at": "2023-10-05T15:30:00.000Z"
+  },
+  "message": "Task completed successfully"
+}
+```
+
+## Error Responses
+
+### Validation Error (400)
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "field": "task_id",
+    "message": "Task ID must be a positive integer"
+  }
+}
+```
+
+### Not Found Error (404)
+```json
+{
+  "success": false,
+  "error": "Task not found",
+  "code": "TASK_NOT_FOUND",
+  "details": {
+    "message": "No task found with the provided ID"
+  }
+}
+```
+
+### Database Error (500)
+```json
+{
+  "success": false,
+  "error": "Database error occurred",
+  "code": "DATABASE_ERROR",
+  "details": {
+    "message": "Failed to update task in database"
+  }
+}
+```
+
+## Example Usage
+```json
+{
+  "task_id": 123
+}
+```
+
+## Implementation Notes
+- Operation is idempotent (calling on already completed task returns success)
+- Sets status to "completed" and completed_at timestamp
+- Returns the updated task object
+- Validates that task_id is a positive integer

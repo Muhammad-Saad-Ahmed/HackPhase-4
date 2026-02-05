@@ -1,0 +1,83 @@
+# OpenAPI Contract: add_task Tool
+
+## Overview
+The `add_task` tool creates a new task in the todo system. This tool accepts a title and optional description, validates the inputs, and creates a new task with "pending" status.
+
+## Endpoint
+```
+POST /mcp/tools/add_task
+```
+
+## Request Body
+```json
+{
+  "title": {
+    "type": "string",
+    "minLength": 1,
+    "maxLength": 255,
+    "description": "The title of the task (required)"
+  },
+  "description": {
+    "type": "string",
+    "maxLength": 1000,
+    "description": "Optional description of the task",
+    "nullable": true
+  }
+}
+```
+
+## Successful Response
+```json
+{
+  "success": true,
+  "data": {
+    "id": 123,
+    "title": "Buy groceries",
+    "description": "Milk, eggs, bread",
+    "status": "pending",
+    "created_at": "2023-10-05T14:48:00.000Z"
+  },
+  "message": "Task created successfully"
+}
+```
+
+## Error Responses
+
+### Validation Error (400)
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "field": "title",
+    "message": "Title is required and must be between 1 and 255 characters"
+  }
+}
+```
+
+### Database Error (500)
+```json
+{
+  "success": false,
+  "error": "Database error occurred",
+  "code": "DATABASE_ERROR",
+  "details": {
+    "message": "Failed to create task in database"
+  }
+}
+```
+
+## Example Usage
+```json
+{
+  "title": "Buy groceries",
+  "description": "Milk, eggs, bread"
+}
+```
+
+## Implementation Notes
+- Validates that title is present and meets length requirements
+- Sets status to "pending" by default
+- Generates created_at timestamp automatically
+- Returns the complete created task object

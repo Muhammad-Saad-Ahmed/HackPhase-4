@@ -1,0 +1,106 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "complete_task",
+  "description": "Mark an existing task as completed. Sets status to 'completed' and records completion timestamp. Idempotent - completing an already-completed task succeeds.",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "integer",
+          "description": "ID of the task to mark as completed (required)",
+          "minimum": 1,
+          "examples": [42, 123]
+        }
+      },
+      "required": ["task_id"],
+      "additionalProperties": false
+    },
+    "output": {
+      "oneOf": [
+        {
+          "type": "object",
+          "title": "Success Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": true
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "description": "Task ID (unchanged)"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Task title (unchanged)"
+                },
+                "description": {
+                  "type": ["string", "null"],
+                  "description": "Task description (unchanged)"
+                },
+                "status": {
+                  "type": "string",
+                  "const": "completed",
+                  "description": "Status set to 'completed'"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Original creation timestamp (unchanged)"
+                },
+                "completed_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "UTC timestamp when task was marked completed (ISO 8601). Updated to current time even if already completed."
+                }
+              },
+              "required": ["id", "title", "description", "status", "created_at", "completed_at"]
+            },
+            "message": {
+              "type": "string",
+              "examples": [
+                "Task marked as completed",
+                "Task was already completed"
+              ]
+            }
+          },
+          "required": ["success", "data", "message"]
+        },
+        {
+          "type": "object",
+          "title": "Error Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": false
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message"
+            },
+            "code": {
+              "type": "string",
+              "enum": ["NOT_FOUND", "DATABASE_ERROR", "INTERNAL_ERROR"],
+              "description": "Machine-readable error code"
+            },
+            "details": {
+              "type": "object",
+              "description": "Additional context about the error",
+              "properties": {
+                "task_id": {
+                  "type": "integer",
+                  "description": "The task ID that was not found"
+                }
+              }
+            }
+          },
+          "required": ["success", "error", "code"]
+        }
+      ]
+    }
+  }
+}

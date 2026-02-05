@@ -1,0 +1,18 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(python -m src.main:*)",
+      "Bash(python:*)",
+      "Bash(uv run uvicorn:*)",
+      "Bash(Select-Object -Last 20)",
+      "Bash(powershell -Command \"Get-Content ''C:\\\\Users\\\\Admin\\\\AppData\\\\Local\\\\Temp\\\\claude\\\\E--hackthaon-TODO-Hackathon-Phase-3-backend\\\\tasks\\\\b7e8fdd.output'' | Select-Object -Last 15\")",
+      "Bash(curl:*)",
+      "Bash(uvicorn:*)",
+      "Bash(find:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(pip install -e .)",
+      "Bash(taskkill /f /im python.exe)"
+    ]
+  }
+}

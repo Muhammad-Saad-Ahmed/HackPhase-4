@@ -1,0 +1,566 @@
+openapi: 3.1.0
+info:
+  title: Agent Invocation API
+  description: REST API for invoking reusable AI agents (Orchestrator, Validation, Conversation, Error Recovery)
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000/api/v1
+    description: Local development FastAPI server
+
+paths:
+  /agents/orchestrator/invoke:
+    post:
+      summary: Invoke Orchestrator Agent
+      description: Processes a natural language request through intent classification, entity extraction, and tool selection
+      operationId: invokeOrchestrator
+      tags:
+        - Orchestrator Agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                request:
+                  type: string
+                  description: Natural language user request
+                  example: "Show me my tasks that are not done yet"
+                conversation_id:
+                  type: string
+                  format: uuid
+                  description: Optional conversation context
+                user_id:
+                  type: string
+                  description: User making the request
+                application_domain:
+                  type: string
+                  enum: [todo, crm, notes, generic]
+                  description: Application context for tool discovery
+              required:
+                - request
+                - user_id
+                - application_domain
+      responses:
+        '200':
+          description: Request processed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OrchestratorResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '500':
+          description: Agent execution error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/validation/check:
+    post:
+      summary: Invoke Validation Agent
+      description: Validates entity existence and operation parameters before execution
+      operationId: invokeValidation
+      tags:
+        - Validation Agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                entity_references:
+                  type: array
+                  items:
+                    type: object
+                    properties:
+                      entity_type:
+                        type: string
+                        description: Type of entity (task, customer, note, etc.)
+                      entity_id:
+                        type: string
+                        description: Entity identifier to validate
+                      entity_name:
+                        type: string
+                        description: Optional entity name for ambiguity resolution
+                  description: Entities referenced in user request
+                operation:
+                  type: string
+                  enum: [create, read, update, delete]
+                  description: Operation to perform
+                tool_name:
+                  type: string
+                  description: Tool that will be invoked
+                parameters:
+                  type: object
+                  description: Tool parameters to validate
+                user_id:
+                  type: string
+                  description: User making the request
+                application_domain:
+                  type: string
+                  enum: [todo, crm, notes, generic]
+              required:
+                - operation
+                - tool_name
+                - parameters
+                - user_id
+                - application_domain
+      responses:
+        '200':
+          description: Validation complete
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ValidationResponse'
+        '400':
+          description: Invalid validation request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/conversation/resolve-references:
+    post:
+      summary: Invoke Conversation Reasoning Agent
+      description: Resolves implicit references (pronouns, "it", "that") using conversation context
+      operationId: invokeConversationReasoning
+      tags:
+        - Conversation Reasoning Agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                current_request:
+                  type: string
+                  description: Current user request with potential implicit references
+                  example: "Mark it done"
+                conversation_id:
+                  type: string
+                  format: uuid
+                  description: Conversation to retrieve context from
+                user_id:
+                  type: string
+                  description: User making the request
+              required:
+                - current_request
+                - conversation_id
+                - user_id
+      responses:
+        '200':
+          description: References resolved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ConversationResponse'
+        '400':
+          description: Invalid request
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /agents/error-recovery/handle:
+    post:
+      summary: Invoke Error & Recovery Agent
+      description: Translates technical errors into user-friendly messages with recovery suggestions
+      operationId: invokeErrorRecovery
+      tags:
+        - Error & Recovery Agent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                error:
+                  type: object
+                  properties:
+                    error_type:
+                      type: string
+                      description: Technical error type
+                    error_message:
+                      type: string
+                      description: Raw error message
+                    error_code:
+                      type: string
+                      description: Error code from tool or system
+                    stack_trace:
+                      type: string
+                      description: Optional stack trace for debugging
+                  required:
+                    - error_type
+                    - error_message
+                context:
+                  type: object
+                  properties:
+                    user_request:
+                      type: string
+                      description: What user was trying to do
+                    tool_name:
+                      type: string
+                      description: Tool that failed
+                    operation:
+                      type: string
+                      description: Operation being performed
+                user_id:
+                  type: string
+                  description: User who encountered the error
+              required:
+                - error
+                - context
+                - user_id
+      responses:
+        '200':
+          description: Error translated and recovery suggestions provided
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorRecoveryResponse'
+
+  /agents/executions/{execution_id}:
+    get:
+      summary: Get agent execution details
+      description: Retrieves execution trace for debugging and explainability
+      operationId: getExecution
+      tags:
+        - Agent Execution
+      parameters:
+        - name: execution_id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Agent execution identifier
+      responses:
+        '200':
+          description: Execution details retrieved
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AgentExecution'
+        '404':
+          description: Execution not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    OrchestratorResponse:
+      type: object
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+          description: Unique identifier for this execution
+        intent:
+          type: object
+          properties:
+            type:
+              type: string
+              enum: [create, read, update, delete, list, search, analyze]
+              description: Classified intent type
+            confidence:
+              type: number
+              format: float
+              description: Confidence score (0-1)
+        entities:
+          type: array
+          items:
+            type: object
+            properties:
+              type:
+                type: string
+                description: Entity type (task, customer, etc.)
+              value:
+                type: string
+                description: Extracted entity value
+              attributes:
+                type: object
+                description: Additional entity attributes
+        selected_tool:
+          type: object
+          properties:
+            tool_name:
+              type: string
+              description: Name of selected tool
+            confidence:
+              type: number
+              format: float
+              description: Tool selection confidence (0-1)
+            parameters:
+              type: object
+              description: Prepared parameters for tool invocation
+        tool_result:
+          type: object
+          description: Result from tool execution (if auto-executed)
+        reasoning_trace:
+          type: array
+          items:
+            type: object
+            properties:
+              step:
+                type: integer
+              action:
+                type: string
+              input:
+                type: object
+              output:
+                type: object
+              confidence:
+                type: number
+                format: float
+              timestamp:
+                type: string
+                format: date-time
+        status:
+          type: string
+          enum: [success, clarification_needed, failure]
+        clarification:
+          type: object
+          description: Present if status=clarification_needed
+          properties:
+            question:
+              type: string
+            options:
+              type: array
+              items:
+                type: string
+      required:
+        - execution_id
+        - intent
+        - entities
+        - selected_tool
+        - status
+
+    ValidationResponse:
+      type: object
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+        validation_status:
+          type: string
+          enum: [approved, rejected, ambiguous]
+        validation_results:
+          type: array
+          items:
+            type: object
+            properties:
+              entity_reference:
+                type: object
+              exists:
+                type: boolean
+              details:
+                type: object
+                description: Entity details if found
+        issues:
+          type: array
+          items:
+            type: object
+            properties:
+              issue_type:
+                type: string
+                enum: [entity_not_found, ambiguous_reference, invalid_parameter, dependency_exists]
+              message:
+                type: string
+                description: User-friendly issue description
+              recovery_actions:
+                type: array
+                items:
+                  type: string
+                description: Suggested actions to resolve issue
+        approved_parameters:
+          type: object
+          description: Validated and approved parameters (if status=approved)
+      required:
+        - execution_id
+        - validation_status
+
+    ConversationResponse:
+      type: object
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+        resolved_request:
+          type: string
+          description: Original request with references resolved
+        resolutions:
+          type: array
+          items:
+            type: object
+            properties:
+              original_reference:
+                type: string
+                description: Implicit reference from request ("it", "that", etc.)
+              resolved_entity:
+                type: object
+                properties:
+                  entity_type:
+                    type: string
+                  entity_id:
+                    type: string
+                  entity_name:
+                    type: string
+              confidence:
+                type: number
+                format: float
+        context_used:
+          type: object
+          properties:
+            messages_retrieved:
+              type: integer
+              description: Number of context messages used
+            entities_considered:
+              type: integer
+              description: Number of entities evaluated
+        status:
+          type: string
+          enum: [resolved, clarification_needed]
+        clarification:
+          type: object
+          description: Present if status=clarification_needed
+          properties:
+            ambiguous_reference:
+              type: string
+            possible_entities:
+              type: array
+              items:
+                type: object
+      required:
+        - execution_id
+        - resolved_request
+        - resolutions
+        - status
+
+    ErrorRecoveryResponse:
+      type: object
+      properties:
+        execution_id:
+          type: string
+          format: uuid
+        error_category:
+          type: string
+          enum: [user_fixable, retryable, system_level]
+        user_message:
+          type: string
+          description: User-friendly error explanation
+        recovery_suggestions:
+          type: array
+          items:
+            type: string
+          description: Concrete steps to recover
+        retry_recommended:
+          type: boolean
+          description: Whether automatic retry is appropriate
+        retry_count:
+          type: integer
+          description: Number of retry attempts already made
+        technical_details:
+          type: object
+          description: Original error details for debugging (not shown to user)
+          properties:
+            error_type:
+              type: string
+            error_message:
+              type: string
+            trace_id:
+              type: string
+              format: uuid
+      required:
+        - execution_id
+        - error_category
+        - user_message
+        - recovery_suggestions
+
+    AgentExecution:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        agent_type:
+          type: string
+          enum: [orchestrator, validation, conversation, error_recovery]
+        input_data:
+          type: object
+        output_data:
+          type: object
+        execution_start:
+          type: string
+          format: date-time
+        execution_end:
+          type: string
+          format: date-time
+        duration_ms:
+          type: integer
+        status:
+          type: string
+          enum: [success, failure, partial]
+        reasoning_trace:
+          type: array
+          items:
+            type: object
+        confidence_scores:
+          type: object
+        tools_invoked:
+          type: array
+          items:
+            type: string
+      required:
+        - id
+        - agent_type
+        - input_data
+        - output_data
+        - execution_start
+        - execution_end
+        - duration_ms
+        - status
+
+    ErrorResponse:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Human-readable error message
+        error_code:
+          type: string
+          description: Machine-readable error code
+        details:
+          type: object
+          description: Additional error context
+        trace_id:
+          type: string
+          format: uuid
+          description: Unique identifier for error tracking
+      required:
+        - error
+        - error_code
+        - trace_id
+
+tags:
+  - name: Orchestrator Agent
+    description: Intent classification, entity extraction, and tool selection
+  - name: Validation Agent
+    description: Entity existence validation and operation approval
+  - name: Conversation Reasoning Agent
+    description: Implicit reference resolution using conversation context
+  - name: Error & Recovery Agent
+    description: Error translation and recovery suggestion generation
+  - name: Agent Execution
+    description: Agent execution history and trace retrieval

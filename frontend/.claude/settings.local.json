@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(if exist .next rmdir /s /q .next)",
+      "Bash(npm run build:*)",
+      "Bash(npm install)",
+      "Bash(npm run dev)",
+      "Bash(curl:*)",
+      "Bash(python -m src.main:*)",
+      "Bash(python:*)",
+      "Bash(ls:*)",
+      "Bash(git config:*)",
+      "Bash(npx kill-port 3000)"
+    ]
+  }
+}

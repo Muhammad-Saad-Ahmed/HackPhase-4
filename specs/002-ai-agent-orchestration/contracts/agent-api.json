@@ -1,0 +1,337 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "AI Agent Chat API",
+    "description": "Natural language chat interface for task management via MCP tools",
+    "version": "1.0.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:8000/api",
+      "description": "Local development server"
+    }
+  ],
+  "paths": {
+    "/{user_id}/chat": {
+      "post": {
+        "summary": "Send message to AI agent",
+        "description": "Send a natural language message to the AI agent. The agent will parse intent, invoke appropriate MCP tools, and return a conversational response.",
+        "operationId": "chat",
+        "tags": ["Chat"],
+        "parameters": [
+          {
+            "name": "user_id",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "minLength": 1,
+              "maxLength": 100
+            },
+            "description": "Unique identifier for the user"
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ChatRequest"
+              },
+              "examples": {
+                "createTask": {
+                  "summary": "Create a task (implicit)",
+                  "value": {
+                    "message": "remind me to buy groceries"
+                  }
+                },
+                "createTaskExplicit": {
+                  "summary": "Create a task (explicit)",
+                  "value": {
+                    "message": "add task: Review documentation"
+                  }
+                },
+                "listTasks": {
+                  "summary": "List all tasks",
+                  "value": {
+                    "conversation_id": "conv_123",
+                    "message": "what's on my todo list?"
+                  }
+                },
+                "listPendingTasks": {
+                  "summary": "List pending tasks only",
+                  "value": {
+                    "conversation_id": "conv_123",
+                    "message": "show me what I still need to do"
+                  }
+                },
+                "completeTask": {
+                  "summary": "Complete task by reference",
+                  "value": {
+                    "conversation_id": "conv_123",
+                    "message": "complete task 2"
+                  }
+                },
+                "updateTask": {
+                  "summary": "Update task by reference",
+                  "value": {
+                    "conversation_id": "conv_123",
+                    "message": "change task 1 to 'Call Sarah instead of John'"
+                  }
+                },
+                "deleteTask": {
+                  "summary": "Delete task by reference",
+                  "value": {
+                    "conversation_id": "conv_123",
+                    "message": "delete task 3"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Successful response from agent",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ChatResponse"
+                },
+                "examples": {
+                  "taskCreated": {
+                    "summary": "Task created successfully",
+                    "value": {
+                      "conversation_id": "conv_123",
+                      "response": "I've added 'buy groceries' to your tasks. You got this!",
+                      "tool_calls": [
+                        {
+                          "tool": "add_task",
+                          "parameters": {
+                            "title": "buy groceries"
+                          },
+                          "result": {
+                            "success": true,
+                            "data": {
+                              "id": 42,
+                              "title": "buy groceries",
+                              "status": "pending",
+                              "created_at": "2026-01-23T10:30:00Z"
+                            }
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "taskListed": {
+                    "summary": "Tasks listed successfully",
+                    "value": {
+                      "conversation_id": "conv_123",
+                      "response": "Here are your pending tasks:\n1. Buy groceries\n2. Call John\n3. Review documentation",
+                      "tool_calls": [
+                        {
+                          "tool": "list_tasks",
+                          "parameters": {
+                            "status": "pending"
+                          },
+                          "result": {
+                            "success": true,
+                            "data": [
+                              {
+                                "id": 42,
+                                "title": "Buy groceries",
+                                "status": "pending"
+                              },
+                              {
+                                "id": 43,
+                                "title": "Call John",
+                                "status": "pending"
+                              },
+                              {
+                                "id": 44,
+                                "title": "Review documentation",
+                                "status": "pending"
+                              }
+                            ]
+                          }
+                        }
+                      ]
+                    }
+                  },
+                  "clarificationNeeded": {
+                    "summary": "Agent needs clarification",
+                    "value": {
+                      "conversation_id": "conv_123",
+                      "response": "I found 3 tasks about meetings. Which one did you mean?\n1. Schedule meeting\n2. Prepare meeting agenda\n3. Send meeting notes",
+                      "tool_calls": []
+                    }
+                  },
+                  "errorNotFound": {
+                    "summary": "Task not found",
+                    "value": {
+                      "conversation_id": "conv_123",
+                      "response": "I couldn't find task 99. Try 'show my tasks' to see what's available.",
+                      "tool_calls": [
+                        {
+                          "tool": "complete_task",
+                          "parameters": {
+                            "task_id": 99
+                          },
+                          "error": "Task not found"
+                        }
+                      ]
+                    }
+                  }
+                }
+              }
+            }
+          },
+          "400": {
+            "description": "Invalid request (validation error)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Validation failed",
+                  "code": "VALIDATION_ERROR",
+                  "details": {
+                    "field": "message",
+                    "message": "Message is required and must be between 1 and 10000 characters"
+                  }
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal server error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Error"
+                },
+                "example": {
+                  "error": "Internal server error",
+                  "code": "INTERNAL_ERROR",
+                  "details": {
+                    "message": "An error occurred while processing your request"
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ChatRequest": {
+        "type": "object",
+        "required": ["message"],
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "maxLength": 100,
+            "description": "Optional conversation ID to continue existing conversation. If not provided, a new conversation will be created."
+          },
+          "message": {
+            "type": "string",
+            "minLength": 1,
+            "maxLength": 10000,
+            "description": "Natural language message from the user"
+          }
+        },
+        "example": {
+          "conversation_id": "conv_123",
+          "message": "remind me to buy groceries"
+        }
+      },
+      "ChatResponse": {
+        "type": "object",
+        "required": ["conversation_id", "response"],
+        "properties": {
+          "conversation_id": {
+            "type": "string",
+            "description": "Unique conversation identifier. Use this in subsequent requests to maintain context."
+          },
+          "response": {
+            "type": "string",
+            "description": "Natural language response from the agent"
+          },
+          "tool_calls": {
+            "type": "array",
+            "description": "MCP tools invoked by the agent (empty if no tools called)",
+            "items": {
+              "$ref": "#/components/schemas/ToolCall"
+            },
+            "default": []
+          }
+        }
+      },
+      "ToolCall": {
+        "type": "object",
+        "required": ["tool"],
+        "properties": {
+          "tool": {
+            "type": "string",
+            "description": "Name of MCP tool invoked",
+            "enum": ["add_task", "list_tasks", "update_task", "complete_task", "delete_task"]
+          },
+          "parameters": {
+            "type": "object",
+            "description": "Parameters passed to the tool",
+            "additionalProperties": true
+          },
+          "result": {
+            "type": "object",
+            "description": "Tool execution result (present if tool succeeded)",
+            "properties": {
+              "success": {
+                "type": "boolean"
+              },
+              "data": {
+                "description": "Tool-specific result data"
+              },
+              "message": {
+                "type": "string",
+                "description": "Human-readable result message"
+              }
+            }
+          },
+          "error": {
+            "type": "string",
+            "description": "Error message (present if tool failed)"
+          }
+        }
+      },
+      "Error": {
+        "type": "object",
+        "required": ["error", "code"],
+        "properties": {
+          "error": {
+            "type": "string",
+            "description": "Human-readable error message"
+          },
+          "code": {
+            "type": "string",
+            "description": "Machine-readable error code",
+            "enum": ["VALIDATION_ERROR", "NOT_FOUND", "DATABASE_ERROR", "INTERNAL_ERROR"]
+          },
+          "details": {
+            "type": "object",
+            "description": "Additional error context",
+            "additionalProperties": true
+          }
+        }
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "Chat",
+      "description": "Natural language chat interface for task management"
+    }
+  ]
+}

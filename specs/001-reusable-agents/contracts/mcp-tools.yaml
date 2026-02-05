@@ -1,0 +1,343 @@
+openapi: 3.1.0
+info:
+  title: MCP Tools Interface
+  description: Model Context Protocol tool definitions for reusable AI agents system
+  version: 1.0.0
+
+servers:
+  - url: http://localhost:8000/mcp
+    description: Local development MCP server
+
+paths:
+  /tools:
+    get:
+      summary: List all available tools
+      description: Returns all registered MCP tools for the specified application domain
+      operationId: listTools
+      tags:
+        - Tool Discovery
+      parameters:
+        - name: application_domain
+          in: query
+          required: false
+          schema:
+            type: string
+            enum: [todo, crm, notes, generic]
+          description: Filter tools by application domain (omit for all domains)
+        - name: is_active
+          in: query
+          required: false
+          schema:
+            type: boolean
+            default: true
+          description: Filter by active status
+      responses:
+        '200':
+          description: List of available tools
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tools:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/ToolDefinition'
+                  total_count:
+                    type: integer
+        '500':
+          description: Internal server error
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tools/{tool_name}:
+    get:
+      summary: Get tool definition
+      description: Retrieves detailed definition for a specific tool
+      operationId: getTool
+      tags:
+        - Tool Discovery
+      parameters:
+        - name: tool_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the tool to retrieve
+      responses:
+        '200':
+          description: Tool definition
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ToolDefinition'
+        '404':
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tools/{tool_name}/invoke:
+    post:
+      summary: Invoke a tool
+      description: Executes the specified tool with provided parameters
+      operationId: invokeTool
+      tags:
+        - Tool Execution
+      parameters:
+        - name: tool_name
+          in: path
+          required: true
+          schema:
+            type: string
+          description: Name of the tool to invoke
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                parameters:
+                  type: object
+                  description: Tool-specific parameters (validated against tool's parameter_schema)
+                conversation_id:
+                  type: string
+                  format: uuid
+                  description: Optional conversation context for tracking
+                user_id:
+                  type: string
+                  description: User invoking the tool (for audit logging)
+              required:
+                - parameters
+                - user_id
+      responses:
+        '200':
+          description: Tool execution successful
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    description: Tool-specific return value
+                  invocation_id:
+                    type: string
+                    format: uuid
+                    description: Unique identifier for this tool invocation
+                  duration_ms:
+                    type: integer
+                    description: Execution duration in milliseconds
+        '400':
+          description: Invalid parameters
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '404':
+          description: Tool not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+        '500':
+          description: Tool execution failed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+  /tools/{tool_name}/search-similar:
+    post:
+      summary: Find similar tools by semantic search
+      description: Uses embedding-based similarity to find tools matching a natural language description
+      operationId: searchSimilarTools
+      tags:
+        - Tool Discovery
+      parameters:
+        - name: tool_name
+          in: path
+          required: false
+          schema:
+            type: string
+          description: Placeholder for REST path structure (actual search uses query text)
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                query:
+                  type: string
+                  description: Natural language description of desired tool functionality
+                application_domain:
+                  type: string
+                  enum: [todo, crm, notes, generic]
+                  description: Optional domain filter
+                limit:
+                  type: integer
+                  default: 5
+                  description: Maximum number of results to return
+                threshold:
+                  type: number
+                  format: float
+                  default: 0.75
+                  description: Minimum similarity score (0-1)
+              required:
+                - query
+      responses:
+        '200':
+          description: Similar tools found
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  tools:
+                    type: array
+                    items:
+                      type: object
+                      properties:
+                        tool:
+                          $ref: '#/components/schemas/ToolDefinition'
+                        similarity_score:
+                          type: number
+                          format: float
+                          description: Cosine similarity score (0-1, higher is more similar)
+        '400':
+          description: Invalid query
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Error'
+
+components:
+  schemas:
+    ToolDefinition:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          description: Unique tool identifier
+        tool_name:
+          type: string
+          pattern: '^[a-z][a-z0-9_]*$'
+          description: Tool name (lowercase with underscores)
+          example: list_todos
+        tool_version:
+          type: string
+          pattern: '^\d+\.\d+\.\d+$'
+          description: Semantic version
+          example: 1.0.0
+        application_domain:
+          type: string
+          description: Application domain this tool belongs to
+          example: todo
+        description:
+          type: string
+          minLength: 50
+          description: Detailed tool description for semantic search
+          example: Lists all todos for the current user, optionally filtered by status (todo/done) and sorted by creation date.
+        parameter_schema:
+          type: object
+          description: JSON Schema defining tool parameters
+          example:
+            type: object
+            properties:
+              status:
+                type: string
+                enum: [todo, done]
+                description: Filter tasks by status
+              limit:
+                type: integer
+                minimum: 1
+                maximum: 100
+                description: Maximum number of tasks to return
+            required: []
+        return_schema:
+          type: object
+          description: JSON Schema defining tool return value
+          example:
+            type: object
+            properties:
+              tasks:
+                type: array
+                items:
+                  type: object
+                  properties:
+                    id:
+                      type: string
+                    title:
+                      type: string
+                    status:
+                      type: string
+              total_count:
+                type: integer
+        is_active:
+          type: boolean
+          description: Whether tool is available for use
+        requires_validation:
+          type: boolean
+          description: Whether Validation Agent should verify entity existence
+        metadata:
+          type: object
+          description: Additional tool metadata
+          properties:
+            tags:
+              type: array
+              items:
+                type: string
+            category:
+              type: string
+            examples:
+              type: array
+              items:
+                type: object
+                properties:
+                  description:
+                    type: string
+                  parameters:
+                    type: object
+                  expected_result:
+                    type: object
+      required:
+        - id
+        - tool_name
+        - tool_version
+        - application_domain
+        - description
+        - parameter_schema
+        - return_schema
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+          description: Error message
+        error_code:
+          type: string
+          description: Machine-readable error code
+        details:
+          type: object
+          description: Additional error details
+        trace_id:
+          type: string
+          format: uuid
+          description: Unique identifier for error tracking
+      required:
+        - error
+        - error_code
+        - trace_id
+
+tags:
+  - name: Tool Discovery
+    description: Operations for discovering available tools
+  - name: Tool Execution
+    description: Operations for executing tools

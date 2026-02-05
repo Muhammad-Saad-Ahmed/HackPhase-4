@@ -1,0 +1,485 @@
+openapi: 3.1.0
+info:
+  title: Todo MCP Tools API
+  version: 1.0.0
+  description: |
+    MCP tool endpoints for todo application CRUD operations.
+
+    Each tool maps 1:1 to a database operation and returns JSON-only responses.
+    Tools are discoverable via semantic search and consumable by reusable agents.
+
+    **Design Principles**:
+    - One tool = one database operation (no chaining)
+    - JSON-only responses (no HTML or plain text)
+    - Stateless tool functions
+    - Input validation before database access
+    - Typed success and error responses
+  contact:
+    name: Todo AI Chatbot Team
+  license:
+    name: MIT
+
+servers:
+  - url: http://localhost:8001
+    description: Local MCP server
+  - url: http://mcp-server:8001
+    description: Docker deployment
+
+paths:
+  /tools/add_task/invoke:
+    post:
+      summary: Create a new task
+      description: |
+        Creates a new task in the todo system with pending status.
+
+        **Semantic Keywords**: add, create, make, new, start task
+
+        **Use Cases**:
+        - Agent receives "Add a task to buy groceries"
+        - Agent receives "Create a new task called X"
+        - Agent receives "I need to remember to Y"
+      operationId: invoke_add_task
+      tags:
+        - Todo Tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - parameters
+                - user_id
+              properties:
+                parameters:
+                  type: object
+                  required:
+                    - title
+                  properties:
+                    title:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                      description: Task title (required)
+                      example: "Buy groceries"
+                    description:
+                      type: string
+                      maxLength: 5000
+                      default: ""
+                      description: Optional task description
+                      example: "Milk, eggs, bread"
+                user_id:
+                  type: string
+                  description: User who owns this task
+                  example: "user-123"
+                conversation_id:
+                  type: string
+                  nullable: true
+                  description: Optional conversation context
+            example:
+              parameters:
+                title: "Buy groceries"
+                description: "Milk, eggs, bread"
+              user_id: "user-123"
+      responses:
+        '200':
+          description: Task created successfully or validation error
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TaskResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                success:
+                  value:
+                    result:
+                      id: 123
+                      title: "Buy groceries"
+                      description: "Milk, eggs, bread"
+                      status: "pending"
+                      created_at: "2026-01-16T10:30:00Z"
+                      completed_at: null
+                      user_id: "user-123"
+                error:
+                  value:
+                    result:
+                      error: "Title cannot be empty"
+                      code: "VALIDATION_ERROR"
+
+  /tools/list_tasks/invoke:
+    post:
+      summary: List tasks with optional filtering
+      description: |
+        Retrieves task list for a user with optional status filtering and pagination.
+
+        **Semantic Keywords**: list, show, get, view, see, display, fetch tasks
+
+        **Use Cases**:
+        - Agent receives "Show me my tasks"
+        - Agent receives "List all completed tasks"
+        - Agent receives "What are my pending tasks?"
+      operationId: invoke_list_tasks
+      tags:
+        - Todo Tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - parameters
+                - user_id
+              properties:
+                parameters:
+                  type: object
+                  properties:
+                    status:
+                      type: string
+                      enum: [all, pending, completed]
+                      default: "all"
+                      description: Filter by task status
+                    limit:
+                      type: integer
+                      minimum: 1
+                      maximum: 1000
+                      default: 100
+                      description: Maximum number of tasks to return
+                    offset:
+                      type: integer
+                      minimum: 0
+                      default: 0
+                      description: Number of tasks to skip (for pagination)
+                user_id:
+                  type: string
+                  description: User whose tasks to list
+            example:
+              parameters:
+                status: "pending"
+                limit: 50
+                offset: 0
+              user_id: "user-123"
+      responses:
+        '200':
+          description: Task list returned
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  result:
+                    type: object
+                    properties:
+                      tasks:
+                        type: array
+                        items:
+                          $ref: '#/components/schemas/Task'
+                      total:
+                        type: integer
+                        description: Total number of tasks matching filter
+                      limit:
+                        type: integer
+                      offset:
+                        type: integer
+              example:
+                result:
+                  tasks:
+                    - id: 123
+                      title: "Buy groceries"
+                      description: "Milk, eggs, bread"
+                      status: "pending"
+                      created_at: "2026-01-16T10:30:00Z"
+                      completed_at: null
+                      user_id: "user-123"
+                    - id: 124
+                      title: "Call dentist"
+                      description: ""
+                      status: "pending"
+                      created_at: "2026-01-16T11:00:00Z"
+                      completed_at: null
+                      user_id: "user-123"
+                  total: 2
+                  limit: 100
+                  offset: 0
+
+  /tools/complete_task/invoke:
+    post:
+      summary: Mark a task as completed
+      description: |
+        Updates task status to completed with completion timestamp.
+        Idempotent - calling multiple times returns success.
+
+        **Semantic Keywords**: complete, finish, done, mark done, check off task
+
+        **Use Cases**:
+        - Agent receives "Mark task #3 as done"
+        - Agent receives "Complete the groceries task"
+        - Agent receives "I finished task 5"
+      operationId: invoke_complete_task
+      tags:
+        - Todo Tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - parameters
+                - user_id
+              properties:
+                parameters:
+                  type: object
+                  required:
+                    - task_id
+                  properties:
+                    task_id:
+                      type: integer
+                      description: ID of task to complete
+                      example: 123
+                user_id:
+                  type: string
+            example:
+              parameters:
+                task_id: 123
+              user_id: "user-123"
+      responses:
+        '200':
+          description: Task completed or error
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TaskResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                success:
+                  value:
+                    result:
+                      id: 123
+                      title: "Buy groceries"
+                      description: "Milk, eggs, bread"
+                      status: "completed"
+                      created_at: "2026-01-16T10:30:00Z"
+                      completed_at: "2026-01-16T15:45:00Z"
+                      user_id: "user-123"
+                not_found:
+                  value:
+                    result:
+                      error: "Task not found"
+                      code: "TASK_NOT_FOUND"
+
+  /tools/update_task/invoke:
+    post:
+      summary: Update task title and/or description
+      description: |
+        Modifies task attributes (title, description). Status changes via complete_task.
+
+        **Semantic Keywords**: update, edit, modify, change, revise task
+
+        **Use Cases**:
+        - Agent receives "Change task #2 title to X"
+        - Agent receives "Update the description for task Y"
+        - Agent receives "Edit task 5 to say Z"
+      operationId: invoke_update_task
+      tags:
+        - Todo Tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - parameters
+                - user_id
+              properties:
+                parameters:
+                  type: object
+                  required:
+                    - task_id
+                  properties:
+                    task_id:
+                      type: integer
+                      description: ID of task to update
+                    title:
+                      type: string
+                      minLength: 1
+                      maxLength: 500
+                      description: New task title (optional)
+                    description:
+                      type: string
+                      maxLength: 5000
+                      description: New task description (optional)
+                user_id:
+                  type: string
+            example:
+              parameters:
+                task_id: 123
+                title: "Buy organic groceries"
+                description: "Whole Foods - milk, eggs, bread, avocados"
+              user_id: "user-123"
+      responses:
+        '200':
+          description: Task updated or error
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TaskResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+
+  /tools/delete_task/invoke:
+    post:
+      summary: Delete a task permanently
+      description: |
+        Removes task from database. No soft delete or undo.
+
+        **Semantic Keywords**: delete, remove, erase, discard, get rid of task
+
+        **Use Cases**:
+        - Agent receives "Delete task #5"
+        - Agent receives "Remove the groceries task"
+        - Agent receives "Get rid of task 3"
+      operationId: invoke_delete_task
+      tags:
+        - Todo Tools
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - parameters
+                - user_id
+              properties:
+                parameters:
+                  type: object
+                  required:
+                    - task_id
+                  properties:
+                    task_id:
+                      type: integer
+                      description: ID of task to delete
+                user_id:
+                  type: string
+            example:
+              parameters:
+                task_id: 123
+              user_id: "user-123"
+      responses:
+        '200':
+          description: Task deleted or error
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - type: object
+                    properties:
+                      result:
+                        type: object
+                        properties:
+                          message:
+                            type: string
+                          task_id:
+                            type: integer
+                  - $ref: '#/components/schemas/ErrorResponse'
+              examples:
+                success:
+                  value:
+                    result:
+                      message: "Task deleted"
+                      task_id: 123
+                not_found:
+                  value:
+                    result:
+                      error: "Task not found"
+                      code: "TASK_NOT_FOUND"
+
+components:
+  schemas:
+    Task:
+      type: object
+      required:
+        - id
+        - title
+        - description
+        - status
+        - created_at
+        - user_id
+      properties:
+        id:
+          type: integer
+          description: Unique task identifier
+        title:
+          type: string
+          maxLength: 500
+          description: Task title
+        description:
+          type: string
+          maxLength: 5000
+          description: Optional task description
+        status:
+          type: string
+          enum: [pending, completed]
+          description: Task status
+        created_at:
+          type: string
+          format: date-time
+          description: Task creation timestamp (ISO 8601)
+        completed_at:
+          type: string
+          format: date-time
+          nullable: true
+          description: Task completion timestamp (null if pending)
+        user_id:
+          type: string
+          description: User who owns this task
+      example:
+        id: 123
+        title: "Buy groceries"
+        description: "Milk, eggs, bread"
+        status: "pending"
+        created_at: "2026-01-16T10:30:00Z"
+        completed_at: null
+        user_id: "user-123"
+
+    TaskResponse:
+      type: object
+      required:
+        - result
+      properties:
+        result:
+          $ref: '#/components/schemas/Task'
+
+    ErrorResponse:
+      type: object
+      required:
+        - result
+      properties:
+        result:
+          type: object
+          required:
+            - error
+            - code
+          properties:
+            error:
+              type: string
+              description: Human-readable error message
+            code:
+              type: string
+              enum:
+                - TASK_NOT_FOUND
+                - VALIDATION_ERROR
+                - DATABASE_ERROR
+              description: Machine-readable error code
+      example:
+        result:
+          error: "Task not found"
+          code: "TASK_NOT_FOUND"
+
+tags:
+  - name: Todo Tools
+    description: MCP tools for todo application CRUD operations

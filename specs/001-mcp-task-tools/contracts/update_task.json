@@ -1,0 +1,133 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "update_task",
+  "description": "Update the title and/or description of an existing task. Status and timestamps are not modified. Returns the updated task.",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "task_id": {
+          "type": "integer",
+          "description": "ID of the task to update (required)",
+          "minimum": 1,
+          "examples": [42, 123]
+        },
+        "title": {
+          "type": "string",
+          "description": "New title for the task (optional, if omitted title remains unchanged)",
+          "minLength": 1,
+          "maxLength": 255,
+          "examples": ["Updated task title"]
+        },
+        "description": {
+          "type": ["string", "null"],
+          "description": "New description for the task (optional, if omitted description remains unchanged). Set to null to clear description.",
+          "maxLength": 1000,
+          "examples": [
+            "Updated detailed context",
+            null
+          ]
+        }
+      },
+      "required": ["task_id"],
+      "additionalProperties": false,
+      "minProperties": 2,
+      "description": "At least one of title or description must be provided in addition to task_id"
+    },
+    "output": {
+      "oneOf": [
+        {
+          "type": "object",
+          "title": "Success Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": true
+            },
+            "data": {
+              "type": "object",
+              "properties": {
+                "id": {
+                  "type": "integer",
+                  "description": "Task ID (unchanged)"
+                },
+                "title": {
+                  "type": "string",
+                  "description": "Updated or unchanged title"
+                },
+                "description": {
+                  "type": ["string", "null"],
+                  "description": "Updated or unchanged description"
+                },
+                "status": {
+                  "type": "string",
+                  "enum": ["pending", "completed"],
+                  "description": "Task status (unchanged by this operation)"
+                },
+                "created_at": {
+                  "type": "string",
+                  "format": "date-time",
+                  "description": "Original creation timestamp (unchanged)"
+                },
+                "completed_at": {
+                  "type": ["string", "null"],
+                  "format": "date-time",
+                  "description": "Completion timestamp if task is completed, otherwise null (unchanged)"
+                }
+              },
+              "required": ["id", "title", "description", "status", "created_at", "completed_at"]
+            },
+            "message": {
+              "type": "string",
+              "examples": [
+                "Task updated successfully",
+                "Task title updated",
+                "Task description updated"
+              ]
+            }
+          },
+          "required": ["success", "data", "message"]
+        },
+        {
+          "type": "object",
+          "title": "Error Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": false
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message"
+            },
+            "code": {
+              "type": "string",
+              "enum": ["NOT_FOUND", "VALIDATION_ERROR", "DATABASE_ERROR", "INTERNAL_ERROR"],
+              "description": "Machine-readable error code"
+            },
+            "details": {
+              "type": "object",
+              "description": "Additional context about the error",
+              "properties": {
+                "task_id": {
+                  "type": "integer",
+                  "description": "The task ID that was not found"
+                },
+                "field": {
+                  "type": "string",
+                  "description": "Field that failed validation"
+                },
+                "constraint": {
+                  "type": "string",
+                  "description": "Constraint that was violated"
+                }
+              }
+            }
+          },
+          "required": ["success", "error", "code"]
+        }
+      ]
+    }
+  }
+}

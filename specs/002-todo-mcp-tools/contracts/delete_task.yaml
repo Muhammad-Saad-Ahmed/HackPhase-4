@@ -1,0 +1,83 @@
+# OpenAPI Contract: delete_task Tool
+
+## Overview
+The `delete_task` tool permanently removes a task from the database. This operation is irreversible.
+
+## Endpoint
+```
+POST /mcp/tools/delete_task
+```
+
+## Request Body
+```json
+{
+  "task_id": {
+    "type": "integer",
+    "minimum": 1,
+    "description": "The ID of the task to delete (required)"
+  }
+}
+```
+
+## Successful Response
+```json
+{
+  "success": true,
+  "data": {
+    "deleted_id": 123
+  },
+  "message": "Task deleted successfully"
+}
+```
+
+## Error Responses
+
+### Validation Error (400)
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "field": "task_id",
+    "message": "Task ID must be a positive integer"
+  }
+}
+```
+
+### Not Found Error (404)
+```json
+{
+  "success": false,
+  "error": "Task not found",
+  "code": "TASK_NOT_FOUND",
+  "details": {
+    "message": "No task found with the provided ID"
+  }
+}
+```
+
+### Database Error (500)
+```json
+{
+  "success": false,
+  "error": "Database error occurred",
+  "code": "DATABASE_ERROR",
+  "details": {
+    "message": "Failed to delete task from database"
+  }
+}
+```
+
+## Example Usage
+```json
+{
+  "task_id": 123
+}
+```
+
+## Implementation Notes
+- Performs permanent deletion (no soft delete)
+- Validates that task_id is a positive integer
+- Returns confirmation of the deleted task ID
+- Validates task exists before attempting deletion

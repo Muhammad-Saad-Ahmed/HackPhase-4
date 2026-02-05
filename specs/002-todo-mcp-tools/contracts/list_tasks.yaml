@@ -1,0 +1,101 @@
+# OpenAPI Contract: list_tasks Tool
+
+## Overview
+The `list_tasks` tool retrieves a list of tasks from the todo system. This tool supports optional filtering by status and pagination parameters.
+
+## Endpoint
+```
+POST /mcp/tools/list_tasks
+```
+
+## Request Body
+```json
+{
+  "status": {
+    "type": "string",
+    "enum": ["pending", "completed", "all"],
+    "default": "all",
+    "description": "Filter tasks by status (optional)"
+  },
+  "limit": {
+    "type": "integer",
+    "minimum": 1,
+    "maximum": 100,
+    "default": 50,
+    "description": "Maximum number of tasks to return (optional)"
+  },
+  "offset": {
+    "type": "integer",
+    "minimum": 0,
+    "default": 0,
+    "description": "Number of tasks to skip (optional)"
+  }
+}
+```
+
+## Successful Response
+```json
+{
+  "success": true,
+  "data": [
+    {
+      "id": 123,
+      "title": "Buy groceries",
+      "description": "Milk, eggs, bread",
+      "status": "pending",
+      "created_at": "2023-10-05T14:48:00.000Z"
+    },
+    {
+      "id": 124,
+      "title": "Walk the dog",
+      "description": null,
+      "status": "completed",
+      "created_at": "2023-10-05T10:30:00.000Z",
+      "completed_at": "2023-10-05T11:00:00.000Z"
+    }
+  ],
+  "message": "Tasks retrieved successfully"
+}
+```
+
+## Error Responses
+
+### Validation Error (400)
+```json
+{
+  "success": false,
+  "error": "Validation failed",
+  "code": "VALIDATION_ERROR",
+  "details": {
+    "field": "limit",
+    "message": "Limit must be between 1 and 100"
+  }
+}
+```
+
+### Database Error (500)
+```json
+{
+  "success": false,
+  "error": "Database error occurred",
+  "code": "DATABASE_ERROR",
+  "details": {
+    "message": "Failed to retrieve tasks from database"
+  }
+}
+```
+
+## Example Usage
+```json
+{
+  "status": "pending",
+  "limit": 10,
+  "offset": 0
+}
+```
+
+## Implementation Notes
+- Supports filtering by status (pending/completed/all)
+- Implements pagination with limit/offset
+- Returns tasks ordered by creation date (newest first)
+- Includes completed_at timestamp for completed tasks

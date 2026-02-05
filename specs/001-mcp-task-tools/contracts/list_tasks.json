@@ -1,0 +1,118 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "list_tasks",
+  "description": "Retrieve all tasks or filter by status. Returns tasks ordered by creation date (newest first).",
+  "type": "object",
+  "properties": {
+    "input": {
+      "type": "object",
+      "properties": {
+        "status": {
+          "type": ["string", "null"],
+          "description": "Filter tasks by status (optional). If null or omitted, returns all tasks.",
+          "enum": ["pending", "completed", null],
+          "examples": ["pending", "completed", null]
+        }
+      },
+      "additionalProperties": false
+    },
+    "output": {
+      "oneOf": [
+        {
+          "type": "object",
+          "title": "Success Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": true
+            },
+            "data": {
+              "type": "array",
+              "description": "List of tasks matching the filter, ordered by created_at DESC",
+              "items": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "integer",
+                    "description": "Unique identifier of the task"
+                  },
+                  "title": {
+                    "type": "string",
+                    "description": "Task title"
+                  },
+                  "description": {
+                    "type": ["string", "null"],
+                    "description": "Task description or null"
+                  },
+                  "status": {
+                    "type": "string",
+                    "enum": ["pending", "completed"],
+                    "description": "Current task status"
+                  },
+                  "created_at": {
+                    "type": "string",
+                    "format": "date-time",
+                    "description": "UTC timestamp when task was created (ISO 8601)"
+                  },
+                  "completed_at": {
+                    "type": ["string", "null"],
+                    "format": "date-time",
+                    "description": "UTC timestamp when task was completed, or null if pending (ISO 8601)"
+                  }
+                },
+                "required": ["id", "title", "description", "status", "created_at", "completed_at"]
+              }
+            },
+            "message": {
+              "type": "string",
+              "examples": [
+                "Found 5 tasks",
+                "Found 3 pending tasks",
+                "Found 2 completed tasks",
+                "No tasks found"
+              ]
+            }
+          },
+          "required": ["success", "data", "message"]
+        },
+        {
+          "type": "object",
+          "title": "Error Response",
+          "properties": {
+            "success": {
+              "type": "boolean",
+              "const": false
+            },
+            "error": {
+              "type": "string",
+              "description": "Human-readable error message"
+            },
+            "code": {
+              "type": "string",
+              "enum": ["VALIDATION_ERROR", "DATABASE_ERROR", "INTERNAL_ERROR"],
+              "description": "Machine-readable error code"
+            },
+            "details": {
+              "type": "object",
+              "description": "Additional context about the error",
+              "properties": {
+                "field": {
+                  "type": "string",
+                  "description": "Field that failed validation"
+                },
+                "allowed_values": {
+                  "type": "array",
+                  "items": {
+                    "type": "string"
+                  },
+                  "description": "List of allowed values for enum field"
+                }
+              }
+            }
+          },
+          "required": ["success", "error", "code"]
+        }
+      ]
+    }
+  }
+}
