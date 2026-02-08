@@ -29,6 +29,15 @@ services:
       timeout: 10s
       retries: 3
       start_period: 40s
+    # Resource limits for predictable performance
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.5'
+          memory: 256M
 
   frontend:
     build:
@@ -48,6 +57,15 @@ services:
     networks:
       - app-network
     restart: unless-stopped
+    # Resource limits for reasonable build performance
+    deploy:
+      resources:
+        limits:
+          cpus: '2.0'
+          memory: 2G
+        reservations:
+          cpus: '1.0'
+          memory: 512M
 
 networks:
   app-network:

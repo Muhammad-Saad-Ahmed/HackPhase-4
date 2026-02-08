@@ -1,0 +1,155 @@
+# Local development values for TodoBot Helm Chart
+# Use this file for local Minikube deployment
+
+# Global configuration
+global:
+  namespace: default
+  imagePullPolicy: IfNotPresent
+
+# Backend configuration
+backend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: todobot-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+
+  env:
+    serverHost: "0.0.0.0"
+    serverPort: "8000"
+    logLevel: "INFO"
+
+    # LLM Configuration - Update with your provider
+    llmProvider: "openai"
+    llmModel: "gpt-4o-mini"
+    llmBaseUrl: "https://api.openai.com/v1"
+
+    # For Groq (uncomment to use):
+    # llmProvider: "openai"
+    # llmModel: "llama-3.3-70b-versatile"
+    # llmBaseUrl: "https://api.groq.com/openai/v1"
+
+    corsOrigins: "http://localhost:3000,http://localhost:30000"
+
+  database:
+    host: "todobot-database"
+    port: "5432"
+    name: "chatdb"
+    user: "user"
+
+  healthCheck:
+    enabled: true
+    path: /health
+    initialDelaySeconds: 40
+    periodSeconds: 30
+    timeoutSeconds: 10
+
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "500m"
+      memory: "256Mi"
+
+# Frontend configuration
+frontend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: todobot-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  service:
+    type: NodePort
+    port: 3000
+    targetPort: 3000
+    nodePort: 30000  # Access via http://<minikube-ip>:30000
+
+  env:
+    nextPublicApiUrl: "http://todobot-backend:8000/api"
+    betterAuthUrl: "http://localhost:30000"
+    nodeEnv: "production"
+
+  resources:
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "1000m"
+      memory: "512Mi"
+
+# Database configuration
+database:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: postgres
+    tag: "15-alpine"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+
+  env:
+    postgresDb: "chatdb"
+    postgresUser: "user"
+
+  persistence:
+    enabled: true
+    storageClass: ""  # Use default storage class
+    accessMode: ReadWriteOnce
+    size: 1Gi
+
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+
+# Secrets - UPDATE THESE VALUES!
+secrets:
+  # Database password
+  databasePassword: "devpassword123"
+
+  # Better Auth Secret (minimum 32 characters)
+  # Generate using: python -c "import secrets; print(secrets.token_hex(32))"
+  betterAuthSecret: "dev-secret-key-minimum-32-characters-long-for-development-only"
+
+  # LLM API Key - REQUIRED! Update with your actual API key
+  llmApiKey: "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"
+
+# Service Account
+serviceAccount:
+  create: true
+  automount: true
+
+# Pod Security
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+
+# Ingress - disabled for local deployment
+ingress:
+  enabled: false
+
+# Autoscaling - disabled for local deployment
+autoscaling:
+  enabled: false

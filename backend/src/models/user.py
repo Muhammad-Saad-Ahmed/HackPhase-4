@@ -11,6 +11,7 @@ class User(SQLModel, table=True):
     """User model with authentication credentials."""
 
     __tablename__ = "user"
+    __table_args__ = {'extend_existing': True}
 
     id: str = Field(
         primary_key=True,

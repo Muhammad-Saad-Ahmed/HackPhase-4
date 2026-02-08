@@ -1,0 +1,118 @@
+🎉 TodoBot has been deployed successfully!
+
+Your release is named: {{ .Release.Name }}
+
+Components deployed:
+{{- if .Values.backend.enabled }}
+✅ Backend (FastAPI) - {{ include "TodoBot.fullname" . }}-backend
+{{- end }}
+{{- if .Values.frontend.enabled }}
+✅ Frontend (Next.js) - {{ include "TodoBot.fullname" . }}-frontend
+{{- end }}
+{{- if .Values.database.enabled }}
+✅ Database (PostgreSQL) - {{ include "TodoBot.fullname" . }}-database
+{{- end }}
+
+================================================================================
+
+🚀 Getting Started:
+
+1. Check the status of your pods:
+   kubectl get pods -l "app.kubernetes.io/instance={{ .Release.Name }}"
+
+2. Wait for all pods to be Ready:
+   kubectl wait --for=condition=ready pod -l "app.kubernetes.io/instance={{ .Release.Name }}" --timeout=300s
+
+{{- if .Values.frontend.enabled }}
+
+3. Access the TodoBot application:
+
+   {{- if eq .Values.frontend.service.type "NodePort" }}
+   # Get Minikube IP
+   minikube ip
+
+   # Access the frontend at:
+   http://$(minikube ip):{{ .Values.frontend.service.nodePort }}
+
+   # Or using minikube service:
+   minikube service {{ include "TodoBot.fullname" . }}-frontend
+   {{- else if eq .Values.frontend.service.type "LoadBalancer" }}
+   # Get the external IP:
+   kubectl get svc {{ include "TodoBot.fullname" . }}-frontend
+
+   # Wait for LoadBalancer IP and access:
+   export SERVICE_IP=$(kubectl get svc {{ include "TodoBot.fullname" . }}-frontend -o jsonpath='{.status.loadBalancer.ingress[0].ip}')
+   echo "Frontend URL: http://$SERVICE_IP:{{ .Values.frontend.service.port }}"
+   {{- else }}
+   # Port-forward to access locally:
+   kubectl port-forward svc/{{ include "TodoBot.fullname" . }}-frontend {{ .Values.frontend.service.port }}:{{ .Values.frontend.service.port }}
+
+   # Then access at:
+   http://localhost:{{ .Values.frontend.service.port }}
+   {{- end }}
+{{- end }}
+
+{{- if .Values.backend.enabled }}
+
+4. Access the Backend API:
+   {{- if eq .Values.backend.service.type "NodePort" }}
+   minikube service {{ include "TodoBot.fullname" . }}-backend
+   {{- else }}
+   kubectl port-forward svc/{{ include "TodoBot.fullname" . }}-backend {{ .Values.backend.service.port }}:{{ .Values.backend.service.port }}
+   # API available at: http://localhost:{{ .Values.backend.service.port }}
+   # Health check: http://localhost:{{ .Values.backend.service.port }}/health
+   # API docs: http://localhost:{{ .Values.backend.service.port }}/docs
+   {{- end }}
+{{- end }}
+
+================================================================================
+
+📊 Monitoring & Logs:
+
+# View logs from backend:
+kubectl logs -l "app.kubernetes.io/component=backend,app.kubernetes.io/instance={{ .Release.Name }}" -f
+
+# View logs from frontend:
+kubectl logs -l "app.kubernetes.io/component=frontend,app.kubernetes.io/instance={{ .Release.Name }}" -f
+
+# View logs from database:
+kubectl logs -l "app.kubernetes.io/component=database,app.kubernetes.io/instance={{ .Release.Name }}" -f
+
+# Describe pods for troubleshooting:
+kubectl describe pods -l "app.kubernetes.io/instance={{ .Release.Name }}"
+
+================================================================================
+
+🔧 Configuration:
+
+Update your configuration by editing values.yaml and upgrading the release:
+   helm upgrade {{ .Release.Name }} ./TodoBot -f values.yaml
+
+Uninstall the release:
+   helm uninstall {{ .Release.Name }}
+
+================================================================================
+
+📝 Important Notes:
+
+{{- if .Values.database.enabled }}
+⚠️  Database: Data is {{ if .Values.database.persistence.enabled }}persisted{{ else }}NOT persisted{{ end }}
+   {{- if .Values.database.persistence.enabled }}
+   PVC: {{ include "TodoBot.fullname" . }}-database-pvc
+   {{- else }}
+   ⚠️  Enable persistence in values.yaml to avoid data loss!
+   {{- end }}
+{{- end }}
+
+🔐 Secrets: Update secrets in values.yaml before production deployment:
+   - Database password
+   - Better Auth secret (minimum 32 characters)
+   - LLM API key
+
+================================================================================
+
+For more information, visit:
+- Helm Charts: https://helm.sh/docs/
+- Kubernetes: https://kubernetes.io/docs/
+
+Happy coding! 🚀

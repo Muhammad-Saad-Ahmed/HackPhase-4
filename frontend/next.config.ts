@@ -4,8 +4,8 @@ const nextConfig: NextConfig = {
   reactStrictMode: true,
   poweredByHeader: false,
   compress: true,
-  // Enable standalone output for Docker
-  output: 'standalone',
+  // Temporarily disabled standalone mode due to middleware NFT tracing issue
+  // output: 'standalone',
 };
 
 export default nextConfig;

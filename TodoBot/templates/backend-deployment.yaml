@@ -1,0 +1,102 @@
+{{- if .Values.backend.enabled }}
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "TodoBot.fullname" . }}-backend
+  labels:
+    {{- include "TodoBot.labels" . | nindent 4 }}
+    app.kubernetes.io/component: backend
+spec:
+  replicas: {{ .Values.backend.replicaCount }}
+  selector:
+    matchLabels:
+      {{- include "TodoBot.selectorLabels" . | nindent 6 }}
+      app.kubernetes.io/component: backend
+  template:
+    metadata:
+      annotations:
+        checksum/config: {{ include (print $.Template.BasePath "/configmap.yaml") . | sha256sum }}
+        checksum/secret: {{ include (print $.Template.BasePath "/secrets.yaml") . | sha256sum }}
+        {{- with .Values.podAnnotations }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+      labels:
+        {{- include "TodoBot.selectorLabels" . | nindent 8 }}
+        app.kubernetes.io/component: backend
+        {{- with .Values.podLabels }}
+        {{- toYaml . | nindent 8 }}
+        {{- end }}
+    spec:
+      {{- with .Values.podSecurityContext }}
+      securityContext:
+        {{- toYaml . | nindent 8 }}
+      {{- end }}
+      serviceAccountName: {{ include "TodoBot.serviceAccountName" . }}
+      containers:
+      - name: backend
+        image: "{{ .Values.backend.image.repository }}:{{ .Values.backend.image.tag }}"
+        imagePullPolicy: {{ .Values.backend.image.pullPolicy }}
+        ports:
+        - name: http
+          containerPort: {{ .Values.backend.service.targetPort }}
+          protocol: TCP
+        env:
+        - name: database_url
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "TodoBot.fullname" . }}-secrets
+              key: database-url
+        - name: llm_provider
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "TodoBot.fullname" . }}-config
+              key: llm-provider
+        - name: llm_model
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "TodoBot.fullname" . }}-config
+              key: llm-model
+        - name: llm_base_url
+          valueFrom:
+            configMapKeyRef:
+              name: {{ include "TodoBot.fullname" . }}-config
+              key: llm-base-url
+        - name: llm_api_key
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "TodoBot.fullname" . }}-secrets
+              key: llm-api-key
+        - name: BETTER_AUTH_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: {{ include "TodoBot.fullname" . }}-secrets
+              key: better-auth-secret
+        - name: server_host
+          value: {{ .Values.backend.env.serverHost | quote }}
+        - name: server_port
+          value: {{ .Values.backend.env.serverPort | quote }}
+        - name: log_level
+          value: {{ .Values.backend.env.logLevel | quote }}
+        - name: cors_origins
+          value: {{ .Values.backend.env.corsOrigins | quote }}
+        {{- if .Values.backend.healthCheck.enabled }}
+        livenessProbe:
+          httpGet:
+            path: {{ .Values.backend.healthCheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.backend.healthCheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.backend.healthCheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.backend.healthCheck.timeoutSeconds }}
+          failureThreshold: {{ .Values.backend.healthCheck.failureThreshold }}
+        readinessProbe:
+          httpGet:
+            path: {{ .Values.backend.healthCheck.path }}
+            port: http
+          initialDelaySeconds: {{ .Values.backend.healthCheck.initialDelaySeconds }}
+          periodSeconds: {{ .Values.backend.healthCheck.periodSeconds }}
+          timeoutSeconds: {{ .Values.backend.healthCheck.timeoutSeconds }}
+          successThreshold: {{ .Values.backend.healthCheck.successThreshold }}
+        {{- end }}
+        resources:
+          {{- toYaml .Values.backend.resources | nindent 10 }}
+{{- end }}

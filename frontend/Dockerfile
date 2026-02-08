@@ -1,5 +1,5 @@
 # Build stage
-FROM node:18-alpine AS builder
+FROM node:20-alpine AS builder
 
 WORKDIR /app
 
@@ -7,20 +7,21 @@ WORKDIR /app
 COPY package*.json ./
 
 # Install dependencies
-RUN npm ci --only=production
+RUN npm ci
 
 # Copy source code
 COPY . .
 
 # Build argument for API URL
-ARG NEXT_PUBLIC_API_URL=https://MSK9218-HackPjase3.hf.space/api
+ARG NEXT_PUBLIC_API_URL=http://localhost:8000/api
 ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
 
-# Build the application
-RUN npm run build
+# Build the application with reasonable memory limits
+# 2GB max (works on most systems), smaller bundle via standalone mode
+RUN NODE_OPTIONS="--max-old-space-size=2048" npm run build
 
 # Production stage
-FROM node:18-alpine AS runner
+FROM node:20-alpine AS runner
 
 WORKDIR /app
 
@@ -31,10 +32,15 @@ ENV NODE_ENV=production
 RUN addgroup --system --gid 1001 nodejs && \
     adduser --system --uid 1001 nextjs
 
-# Copy necessary files from builder
+# Copy package files and install production dependencies
+COPY --from=builder /app/package*.json ./
+RUN npm ci --only=production
+
+# Copy built application
+COPY --from=builder --chown=nextjs:nodejs /app/.next ./.next
 COPY --from=builder --chown=nextjs:nodejs /app/public ./public
-COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
-COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
+COPY --from=builder --chown=nextjs:nodejs /app/next.config.ts ./
+COPY --from=builder --chown=nextjs:nodejs /app/middleware.ts ./
 
 # Switch to non-root user
 USER nextjs
@@ -44,6 +50,7 @@ EXPOSE 3000
 
 # Set hostname
 ENV HOSTNAME="0.0.0.0"
+ENV PORT=3000
 
 # Start the application
-CMD ["node", "server.js"]
+CMD ["npm", "start"]

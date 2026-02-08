@@ -6,8 +6,8 @@ import { AuthProvider } from "@/hooks/useAuth";
 const inter = Inter({ subsets: ["latin"], weight: ["300", "400", "500", "600", "700"] });
 
 export const metadata: Metadata = {
-  title: "ChatKit",
-  description: "AI-powered task management assistant",
+  title: "Todo App",
+  description: "AI-powered task management with intelligent chatbot assistant",
 };
 
 export default function RootLayout({

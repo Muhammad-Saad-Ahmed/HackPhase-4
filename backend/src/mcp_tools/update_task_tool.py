@@ -14,9 +14,8 @@ class UpdateTaskTool(BaseTool):
     """
     
     def __init__(self):
-        # Create engine and task service (using sync URL for synchronous operations)
-        self.engine = create_engine(settings.sync_database_url)
-        self.task_service = TaskService(self.engine)
+        # Create task service instance
+        self.task_service = TaskService()
     
     async def execute(self, **kwargs) -> Dict[str, Any]:
         """

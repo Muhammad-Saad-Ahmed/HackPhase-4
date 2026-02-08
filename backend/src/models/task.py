@@ -13,15 +13,11 @@ class TaskBase(SQLModel):
 
 
 class Task(TaskBase, table=True):
+    __table_args__ = {'extend_existing': True}
+
     id: int = Field(primary_key=True)
     created_at: datetime = Field(default_factory=datetime.utcnow)
     completed_at: Optional[datetime] = Field(default=None)
-
-    # Indexes for common queries
-    __table_args__ = (
-        # Index on status for list_tasks filtering
-        # Index on created_at for chronological sorting
-    )
 
 
 # Tool Metadata and Tool Invocation models would go here as well

@@ -66,10 +66,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         is_authenticated: true,
       });
 
-      // Redirect to chat page after successful login
+      // Redirect to dashboard after successful login
       if (typeof window !== 'undefined') {
         const redirect = new URLSearchParams(window.location.search).get('redirect');
-        window.location.href = redirect || '/chat';
+        window.location.href = redirect || '/dashboard';
       }
     } catch (err: any) {
       const errorMessage = err.message || 'Login failed. Please check your credentials.';
@@ -98,9 +98,9 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         is_authenticated: true,
       });
 
-      // Redirect to chat page after successful signup
+      // Redirect to dashboard after successful signup
       if (typeof window !== 'undefined') {
-        window.location.href = '/chat';
+        window.location.href = '/dashboard';
       }
     } catch (err: any) {
       const errorMessage = err.message || 'Signup failed. Please try again.';

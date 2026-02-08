@@ -1,0 +1,205 @@
+# Default values for TodoBot
+# This is a YAML-formatted file for configuring the TodoBot application
+
+# Global configuration
+global:
+  # Namespace for deployment
+  namespace: default
+  # Image pull policy
+  imagePullPolicy: IfNotPresent
+
+# Backend (FastAPI) configuration
+backend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: todobot-backend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 8000
+    targetPort: 8000
+    name: backend
+
+  # Environment variables for backend
+  env:
+    serverHost: "0.0.0.0"
+    serverPort: "8000"
+    logLevel: "INFO"
+    llmProvider: "openai"
+    llmModel: "gpt-4o-mini"
+    llmBaseUrl: "https://api.openai.com/v1"
+    corsOrigins: "http://localhost:3000,http://todobot-frontend:3000"
+
+  # Database configuration (injected as DATABASE_URL)
+  database:
+    host: "todobot-database"
+    port: "5432"
+    name: "chatdb"
+    user: "user"
+    # Password should be set in secrets
+
+  # Health check configuration
+  healthCheck:
+    enabled: true
+    path: /health
+    initialDelaySeconds: 40
+    periodSeconds: 30
+    timeoutSeconds: 10
+    successThreshold: 1
+    failureThreshold: 3
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: "1000m"
+      memory: "1Gi"
+    requests:
+      cpu: "500m"
+      memory: "256Mi"
+
+# Frontend (Next.js) configuration
+frontend:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: todobot-frontend
+    tag: latest
+    pullPolicy: IfNotPresent
+
+  service:
+    type: NodePort
+    port: 3000
+    targetPort: 3000
+    nodePort: 30000
+    name: frontend
+
+  # Environment variables for frontend
+  env:
+    # API URL points to backend service
+    nextPublicApiUrl: "http://todobot-backend:8000/api"
+    betterAuthUrl: "http://localhost:3000"
+    nodeEnv: "production"
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: "2000m"
+      memory: "2Gi"
+    requests:
+      cpu: "1000m"
+      memory: "512Mi"
+
+# Database (PostgreSQL) configuration
+database:
+  enabled: true
+  replicaCount: 1
+
+  image:
+    repository: postgres
+    tag: "15-alpine"
+    pullPolicy: IfNotPresent
+
+  service:
+    type: ClusterIP
+    port: 5432
+    targetPort: 5432
+    name: database
+
+  # PostgreSQL configuration
+  env:
+    postgresDb: "chatdb"
+    postgresUser: "user"
+    # Password should be set in secrets
+
+  # Persistence configuration
+  persistence:
+    enabled: true
+    storageClass: ""
+    accessMode: ReadWriteOnce
+    size: 1Gi
+
+  # Resource limits
+  resources:
+    limits:
+      cpu: "500m"
+      memory: "512Mi"
+    requests:
+      cpu: "250m"
+      memory: "256Mi"
+
+# Secrets configuration
+secrets:
+  # Database password
+  databasePassword: "password"
+
+  # Better Auth Secret (minimum 32 characters)
+  # Generate using: python -c "import secrets; print(secrets.token_hex(32))"
+  betterAuthSecret: "dev-secret-key-minimum-32-characters-long-for-development"
+
+  # LLM API Key
+  llmApiKey: "your-openai-api-key"
+
+# Service Account
+serviceAccount:
+  create: true
+  automount: true
+  annotations: {}
+  name: ""
+
+# Pod configuration
+podAnnotations: {}
+podLabels: {}
+
+podSecurityContext:
+  fsGroup: 1000
+
+securityContext:
+  runAsNonRoot: true
+  runAsUser: 1000
+  allowPrivilegeEscalation: false
+  capabilities:
+    drop:
+    - ALL
+
+# Ingress configuration for external access
+ingress:
+  enabled: false
+  className: "nginx"
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /
+    # kubernetes.io/tls-acme: "true"
+  hosts:
+    - host: todobot.local
+      paths:
+        - path: /
+          pathType: Prefix
+          backend: frontend
+        - path: /api
+          pathType: Prefix
+          backend: backend
+  tls: []
+    # - secretName: todobot-tls
+    #   hosts:
+    #     - todobot.local
+
+# Node selector
+nodeSelector: {}
+
+# Tolerations
+tolerations: []
+
+# Affinity rules
+affinity: {}
+
+# Autoscaling (disabled by default for local deployment)
+autoscaling:
+  enabled: false
+  minReplicas: 1
+  maxReplicas: 10
+  targetCPUUtilizationPercentage: 80
+  targetMemoryUtilizationPercentage: 80

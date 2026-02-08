@@ -7,9 +7,8 @@ export default function HomePage() {
   const router = useRouter();
 
   useEffect(() => {
-    // For Phase III-C MVP: Skip auth and go directly to chat
-    // Auth will be implemented in a future phase
-    router.push('/chat');
+    // Redirect to dashboard (main todo app with optional chat feature)
+    router.push('/dashboard');
   }, [router]);
 
   return (

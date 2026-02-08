@@ -1,0 +1,15 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "TodoBot.fullname" . }}-config
+  labels:
+    {{- include "TodoBot.labels" . | nindent 4 }}
+data:
+  # Backend configuration
+  llm-provider: {{ .Values.backend.env.llmProvider | quote }}
+  llm-model: {{ .Values.backend.env.llmModel | quote }}
+  llm-base-url: {{ .Values.backend.env.llmBaseUrl | quote }}
+
+  # Frontend configuration
+  next-public-api-url: {{ printf "http://%s-backend:%s/api" (include "TodoBot.fullname" .) (.Values.backend.service.port | toString) | quote }}
+  better-auth-url: {{ .Values.frontend.env.betterAuthUrl | quote }}

@@ -11,19 +11,15 @@ import type { NextRequest } from 'next/server';
 const publicRoutes = ['/login', '/signup', '/'];
 
 // Protected routes that require authentication
-const protectedRoutes = ['/chat', '/conversations', '/profile'];
+const protectedRoutes = ['/dashboard', '/chat', '/conversations', '/profile'];
 
 export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
-  // Check if the route is public
-  const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
-
   // Check if the route is protected
-  const isProtectedRoute = protectedRoutes.some(route => pathname.startsWith(route));
+  const isProtectedRoute = protectedRoutes.some(route => pathname === route || pathname.startsWith(route + '/'));
 
-  // Get session token from sessionStorage (via cookie or custom header)
-  // Note: In a real app, this would validate the session server-side
+  // Get session token from cookie
   const sessionToken = request.cookies.get('session_token')?.value;
 
   // If accessing a protected route without a session, redirect to login
@@ -33,10 +29,9 @@ export function middleware(request: NextRequest) {
     return NextResponse.redirect(loginUrl);
   }
 
-  // If accessing a public auth route (login/signup) with a session, redirect to chat
-  if ((pathname === '/login' || pathname === '/signup') && sessionToken) {
-    return NextResponse.redirect(new URL('/chat', request.url));
-  }
+  // Don't redirect from login/signup to dashboard on the server side
+  // Let the client-side AuthGuard and useAuth hook handle post-login redirects
+  // This prevents redirect loops with stale cookies
 
   // Allow the request to proceed
   return NextResponse.next();

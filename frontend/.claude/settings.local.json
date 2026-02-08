@@ -10,7 +10,20 @@
       "Bash(python:*)",
       "Bash(ls:*)",
       "Bash(git config:*)",
-      "Bash(npx kill-port 3000)"
+      "Bash(npx kill-port 3000)",
+      "Bash(taskkill:*)",
+      "Bash(netstat:*)",
+      "Bash(findstr:*)",
+      "Bash(tasklist:*)",
+      "Bash(powershell:*)",
+      "Bash(test:*)",
+      "Bash(cmd //c \"taskkill /PID 14280 /F\")",
+      "Bash(cmd //c \"taskkill /PID 23116 /F\")",
+      "Bash(timeout:*)",
+      "Bash(cmd //c \"taskkill /PID 9760 /F\")",
+      "Bash(docker build:*)",
+      "Bash(docker run:*)",
+      "Bash(docker images:*)"
     ]
   }
 }

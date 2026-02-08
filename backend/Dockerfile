@@ -1,45 +1,63 @@
-FROM python:3.11-slim
+# Build stage - install dependencies
+FROM python:3.11-slim AS builder
 
-# Set environment variables for Hugging Face Spaces
+# Set environment variables
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1 \
-    PYTHONPATH=/app \
-    PORT=7860
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
 
-# Install system dependencies
+# Install system dependencies for building
 RUN apt-get update && apt-get install -y \
     build-essential \
-    curl \
     gcc \
     && rm -rf /var/lib/apt/lists/*
 
-# Set work directory
 WORKDIR /app
 
-# Install uv for dependency management
-RUN pip install --no-cache-dir --upgrade pip && \
-    pip install --no-cache-dir uv
+# Install Python dependencies
+COPY requirements.txt ./
+RUN pip install --upgrade pip && \
+    pip install --user --no-warn-script-location -r requirements.txt
 
-# Copy project files
-COPY pyproject.toml uv.lock ./
+# Production stage
+FROM python:3.11-slim
 
-# Copy source code (before install — setuptools needs src/ to build package)
-COPY src ./src
+# Set environment variables
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/app \
+    PORT=8000 \
+    PATH=/home/appuser/.local/bin:$PATH
 
-# Install dependencies + project using uv
-RUN uv pip install --system --compile-bytecode .
+# Install only runtime dependencies (curl for healthcheck)
+RUN apt-get update && apt-get install -y \
+    curl \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
 
 # Create non-root user
-RUN adduser --disabled-password --gecos '' appuser && \
-    chown -R appuser:appuser /app
+RUN adduser --disabled-password --gecos '' appuser
+
+# Copy Python packages from builder
+COPY --from=builder --chown=appuser:appuser /root/.local /home/appuser/.local
+
+# Copy application code
+COPY --chown=appuser:appuser pyproject.toml ./
+COPY --chown=appuser:appuser src ./src
+COPY --chown=appuser:appuser app.py ./
+
+# Install package in editable mode (no build deps needed)
 USER appuser
+RUN pip install --user --no-cache-dir -e .
 
-# Expose port required by Hugging Face Spaces
-EXPOSE 7860
+# Expose port
+EXPOSE 8000
 
-# Health check adapted for Hugging Face Spaces
+# Health check
 HEALTHCHECK --interval=30s --timeout=10s --start-period=40s --retries=3 \
-    CMD curl -f http://localhost:7860/health || exit 1
+    CMD curl -f http://localhost:8000/health || exit 1
 
-# Run the application with Hugging Face Spaces port
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "7860"]
+# Run the application
+CMD ["python", "app.py"]

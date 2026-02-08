@@ -26,9 +26,10 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     // Redirect to login if not authenticated
     if (!session || !session.is_authenticated) {
       const currentPath = window.location.pathname;
-      router.push(`/login?redirect=${encodeURIComponent(currentPath)}`);
+      // Use window.location for more reliable redirect
+      window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`;
     }
-  }, [session, isLoading, router]);
+  }, [session, isLoading]);
 
   // Show loading state while checking auth
   if (isLoading) {
@@ -42,9 +43,16 @@ export default function AuthGuard({ children }: AuthGuardProps) {
     );
   }
 
-  // Don't render children if not authenticated
+  // Show loading state while redirecting if not authenticated
   if (!session || !session.is_authenticated) {
-    return null;
+    return (
+      <div className="flex min-h-screen items-center justify-center bg-gray-50">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-500 mx-auto mb-4"></div>
+          <p className="text-gray-600">Redirecting to login...</p>
+        </div>
+      </div>
+    );
   }
 
   // Render protected content

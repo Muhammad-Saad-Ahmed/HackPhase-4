@@ -7,6 +7,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from .api.chat_endpoint import router as chat_router
 from .api.auth_endpoint import router as auth_router
+from .api.task_endpoint import router as task_router
 from .core.config import settings
 from .core.database import init_db
 # Import models to ensure they're registered with SQLModel
@@ -46,6 +47,7 @@ def create_app():
     # Include routers
     app_instance.include_router(chat_router, prefix="/api")
     app_instance.include_router(auth_router, prefix="/api")
+    app_instance.include_router(task_router, prefix="/api", tags=["tasks"])
 
     # Root endpoint
     @app_instance.get("/")
