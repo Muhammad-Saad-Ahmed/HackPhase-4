@@ -131,7 +131,7 @@ secrets:
   betterAuthSecret: "dev-secret-key-minimum-32-characters-long-for-development-only"
 
   # LLM API Key - REQUIRED! Update with your actual API key
-  llmApiKey: "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"
+  llmApiKey: "OpenAIKey"
 
 # Service Account
 serviceAccount:
