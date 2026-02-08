@@ -60,3 +60,12 @@ $RECYCLE.BIN/
 Thumbs.db
 ehthumbs.db
 Desktop.ini
+
+# TodoBot secrets and local configuration
+todobot/values-local.yaml
+todobot/secrets/
+todobot/*.key
+todobot/*.pem
+todobot/*.p12
+todobot/*secret*
+todobot/*credential*
